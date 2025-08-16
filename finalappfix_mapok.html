@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <!-- This viewport tag is essential for responsive design on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChargeFranchise - EV Charging Platform</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            scroll-behavior: smooth;
+        }
+        .section { display: none; }
+        .section.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-box {
+            position: fixed; top: 20px; right: 20px;
+            padding: 1rem 1.5rem; border-radius: 0.5rem; z-index: 5000; /* High z-index */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateX(120%); opacity: 0; display: none;
+        }
+        .message-box.show { transform: translateX(0); opacity: 1; display: flex; }
+        .message-box.info { background-color: #3b82f6; color: white; }
+        .message-box.success { background-color: #16a34a; color: white; }
+        .message-box.error { background-color: #dc2626; color: white; }
+        /* Custom scrollbar for a better look on desktop */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+
+        /* --- Mobile Menu Animation --- */
+        #mobile-menu-container.is-open {
+            opacity: 1;
+            pointer-events: auto; /* Allow clicks when open */
+        }
+        #mobile-menu-container.is-open #mobile-menu {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 font-sans min-h-screen flex flex-col">
+    <!-- Message Box for user feedback -->
+    <div id="message-box" class="message-box">
+        <span id="message-text"></span>
+        <button onclick="hideMessage()" class="text-white text-2xl ml-4 font-bold">&times;</button>
+    </div>
+
+    <!-- Authentication Section -->
+    <div id="auth-section" class="flex items-center justify-center min-h-screen p-4">
+        <!-- Auth forms are rendered here by renderAuthForms() -->
+    </div>
+
+    <!-- Main Application -->
+    <div id="app-content" class="flex flex-col flex-grow" style="display: none;">
+        <!-- Header with corrected z-index -->
+        <header class="bg-white bg-opacity-10 backdrop-blur-lg p-4 sticky top-0 z-30 shadow-lg">
+            <nav class="container mx-auto flex justify-between items-center">
+                <div class="logo text-xl sm:text-2xl font-bold text-white">⚡ ChargeFranchise</div>
+                <!-- Desktop Navigation -->
+                <ul class="nav-links hidden md:flex items-center gap-4">
+                    <li><a href="#" class="text-white font-medium p-2 rounded-md hover:bg-white/20 transition-colors" onclick="showSection('home')">Home</a></li>
+                    <li><a href="#" class="text-white font-medium p-2 rounded-md hover:bg-white/20 transition-colors" onclick="showSection('find-chargers')">AI Route Planner</a></li>
+                    <li><a href="#" class="text-white font-medium p-2 rounded-md hover:bg-white/20 transition-colors" onclick="showSection('vehicle-reg')">My Vehicles</a></li>
+                    <li id="dashboard-nav-link" style="display: none;"><a href="#" class="text-white font-medium p-2 rounded-md hover:bg-white/20 transition-colors" onclick="showSection('dashboard')">Vendor Dashboard</a></li>
+                    <li id="user-info-container" class="flex items-center gap-4">
+                        <span id="user-info" class="text-white font-semibold"></span>
+                        <button onclick="logout()" class="bg-red-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-red-600 transition-transform hover:scale-105">Logout</button>
+                    </li>
+                </ul>
+                <!-- Mobile Menu Button -->
+                <button class="text-white text-3xl md:hidden" onclick="toggleMobileMenu()">☰</button>
+            </nav>
+        </header>
+
+        <!-- Mobile Menu (slides out) with corrected z-index and new classes for animation -->
+        <div id="mobile-menu-container" class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden opacity-0 pointer-events-none transition-opacity duration-300" onclick="toggleMobileMenu()">
+            <ul id="mobile-menu" class="absolute top-0 right-0 h-full bg-white w-64 shadow-lg p-4 space-y-2 transform translate-x-full transition-transform duration-300 z-50" onclick="event.stopPropagation();">
+                 <li><a href="#" class="block text-gray-700 font-medium p-3 rounded-lg hover:bg-gray-100" onclick="showSection('home'); toggleMobileMenu();">Home</a></li>
+                 <li><a href="#" class="block text-gray-700 font-medium p-3 rounded-lg hover:bg-gray-100" onclick="showSection('find-chargers'); toggleMobileMenu();">AI Route Planner</a></li>
+                 <li><a href="#" class="block text-gray-700 font-medium p-3 rounded-lg hover:bg-gray-100" onclick="showSection('vehicle-reg'); toggleMobileMenu();">My Vehicles</a></li>
+                 <li id="dashboard-nav-link-mobile" style="display: none;"><a href="#" class="block text-gray-700 font-medium p-3 rounded-lg hover:bg-gray-100" onclick="showSection('dashboard'); toggleMobileMenu();">Vendor Dashboard</a></li>
+                 <li class="pt-4"><button onclick="logout()" class="w-full bg-red-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-red-600">Logout</button></li>
+            </ul>
+        </div>
+
+        <!-- Main content area with responsive padding -->
+        <main class="main-content container mx-auto p-4 sm:p-6 flex-grow">
+            <!-- Home Section -->
+            <section id="home" class="section active">
+                <div class="bg-indigo-600 text-white p-8 sm:p-10 rounded-xl text-center shadow-lg">
+                    <h1 class="text-3xl sm:text-4xl font-bold mb-4">Welcome to your EV Dashboard</h1>
+                    <p class="text-lg sm:text-xl opacity-90">Manage vehicles, plan smart routes, and explore the future of electric mobility.</p>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-3">My Vehicles</h2>
+                        <button onclick="showSection('vehicle-reg')" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-transform hover:scale-105">Manage Vehicles</button>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-3">AI Route Planner</h2>
+                        <button onclick="showSection('find-chargers')" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-transform hover:scale-105">Plan Trip</button>
+                    </div>
+                    <div id="vendor-dashboard-card" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 transition-all duration-300 hover:shadow-xl hover:-translate-y-1" style="display: none;">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-3">Vendor Dashboard</h2>
+                        <button onclick="showSection('dashboard')" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-transform hover:scale-105">Go to Dashboard</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Route Planner Section -->
+            <section id="find-chargers" class="section">
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold mb-4 text-gray-800">AI Route Planner</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Route planning form -->
+                        <div class="lg:col-span-1 p-6 bg-gray-50 rounded-lg shadow-inner space-y-4">
+                            <h3 class="text-xl font-semibold text-gray-700">Plan your journey</h3>
+                            <div>
+                                <label for="route-start" class="block text-sm font-medium text-gray-600 mb-1">Start Location</label>
+                                <div class="relative">
+                                    <input type="text" id="route-start" placeholder="e.g. Mumbai" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 pr-10">
+                                    <button onclick="setMyLocation()" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-indigo-600" title="Use my location">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="route-end" class="block text-sm font-medium text-gray-600 mb-1">Destination</label>
+                                <input type="text" id="route-end" placeholder="e.g. Pune" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label for="vehicle-select" class="block text-sm font-medium text-gray-600 mb-1">Select Your Vehicle</label>
+                                <select id="vehicle-select" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                    <option value="">Loading vehicles...</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="start-charge" class="block text-sm font-medium text-gray-600 mb-1">Start Charge %</label>
+                                    <input type="number" id="start-charge" value="90" min="0" max="100" class="w-full p-3 border rounded-lg">
+                                </div>
+                                <div>
+                                    <label for="end-charge" class="block text-sm font-medium text-gray-600 mb-1">End Charge %</label>
+                                    <input type="number" id="end-charge" value="20" min="0" max="100" class="w-full p-3 border rounded-lg">
+                                </div>
+                            </div>
+                            <button onclick="calculateOptimalRoute()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Find Optimal Route</button>
+                            <div id="route-details" class="mt-4 p-4 bg-blue-50 rounded-lg hidden"></div>
+                        </div>
+                        <!-- Map container with responsive height -->
+                        <div class="lg:col-span-2">
+                            <div id="map" class="w-full h-[50vh] lg:h-[600px] rounded-lg shadow-md bg-gray-200 flex items-center justify-center">
+                                <!-- Error message will be injected here if needed -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- My Vehicles Section -->
+            <section id="vehicle-reg" class="section">
+                 <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold mb-4 text-gray-800">My Vehicles</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner">
+                            <h3 class="text-xl font-semibold mb-3 text-gray-700">Add a New Vehicle</h3>
+                            <div class="space-y-4">
+                                <input type="text" id="vehicle-make" placeholder="Make (e.g. Tesla)" class="w-full p-3 border rounded-lg">
+                                <input type="text" id="vehicle-model" placeholder="Model (e.g. Model 3)" class="w-full p-3 border rounded-lg">
+                                <input type="number" id="battery-capacity" placeholder="Battery Capacity (kWh)" class="w-full p-3 border rounded-lg">
+                                <input type="text" id="connector-type" placeholder="Connector Type (e.g. CCS2)" class="w-full p-3 border rounded-lg">
+                                <button onclick="submitVehicle()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Register Vehicle</button>
+                            </div>
+                        </div>
+                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner custom-scrollbar overflow-y-auto max-h-96">
+                            <h3 class="text-xl font-semibold mb-3 text-gray-700">My Registered Vehicles</h3>
+                            <div id="my-vehicles-list" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Vendor Dashboard Section -->
+            <section id="dashboard" class="section">
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold mb-4 text-gray-800">Vendor Dashboard</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner">
+                            <h3 class="text-xl font-semibold mb-3 text-gray-700">Add a New Charger</h3>
+                            <div class="space-y-4">
+                                <input type="text" id="charger-name" placeholder="Charger Name" class="w-full p-3 border rounded-lg">
+                                <input type="number" id="charger-rate" placeholder="Charging Rate (kW)" class="w-full p-3 border rounded-lg">
+                                <input type="number" id="charger-lat" placeholder="Latitude" class="w-full p-3 border rounded-lg">
+                                <input type="number" id="charger-lng" placeholder="Longitude" class="w-full p-3 border rounded-lg">
+                                <input type="text" id="charger-type" placeholder="Connector Type" class="w-full p-3 border rounded-lg">
+                                <button onclick="addCharger()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">Add Charger</button>
+                            </div>
+                        </div>
+                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner custom-scrollbar overflow-y-auto max-h-96">
+                            <h3 class="text-xl font-semibold mb-3 text-gray-700">My Chargers</h3>
+                            <div id="vendor-chargers-list" class="space-y-3"></div>
+                        </div>
+                    </div>
+                     <div class="mt-6 p-6 bg-gray-50 rounded-lg shadow-inner">
+                        <h3 class="text-xl font-semibold mb-3 text-gray-700">Performance Overview</h3>
+                        <canvas id="chargingChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLrNaIQ1Eu-XpKws7J4MFbdxw01p0bEnc&libraries=places,geometry&callback=initMap&onerror=gm_authFailure"></script>
+
+    <!-- Main Application Script -->
+    <script type="module">
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCB2GoSkw4qdFkUmFxNAmIUgGgzFXCZZp8",
+            authDomain: "chargeshare-a327a.firebaseapp.com",
+            databaseURL: "https://chargeshare-a327a-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "chargeshare-a327a",
+            storageBucket: "chargeshare-a327a.firebasestorage.app",
+            messagingSenderId: "77947942873",
+            appId: "1:77947942873:web:b8366adbb41f39b8a8cbc8"
+        };
+
+        // Firebase Service Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
+            signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup,
+            signOut, updateProfile
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, getDoc, addDoc, collection,
+            query, onSnapshot, serverTimestamp, deleteDoc, GeoPoint, where
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Global App State
+        let map, directionsService, directionsRenderer, geocoder, chargingChart;
+        let currentUserRole = 'user';
+        let allChargers = [];
+        let userVehicles = [];
+        let chargerMapMarkers = [];
+        let routeMapMarkers = [];
+
+        // --- Core App Initialization ---
+        
+        window.initMap = function() {
+          try {
+            const defaultLocation = { lat: 19.0760, lng: 72.8777 }; // Mumbai
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 10, center: defaultLocation, mapTypeControl: false,
+                streetViewControl: false,
+            });
+            directionsService = new google.maps.DirectionsService();
+            geocoder = new google.maps.Geocoder(); 
+            directionsRenderer = new google.maps.DirectionsRenderer({ 
+                map: map, 
+                suppressMarkers: true 
+            });
+            
+            const startInput = document.getElementById('route-start');
+            const endInput = document.getElementById('route-end');
+            if(startInput) new google.maps.places.Autocomplete(startInput);
+            if(endInput) new google.maps.places.Autocomplete(endInput);
+
+            startInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculateOptimalRoute(); });
+            endInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculateOptimalRoute(); });
+
+            console.log("Map Initialized Successfully");
+          } catch(error) {
+            console.error("Google Maps script failed to load or initialize.", error);
+            const mapDiv = document.getElementById('map');
+            if (mapDiv) {
+                mapDiv.innerHTML = `<div class="p-4 text-center text-red-600 bg-red-100 rounded-lg">
+                                        <strong>Map Failed to Load</strong><br>
+                                        Please check the browser console for errors.
+                                    </div>`;
+            }
+          }
+        };
+
+        window.gm_authFailure = () => {
+            console.error("Google Maps authentication failed. This is most likely an API key issue.");
+            const mapDiv = document.getElementById('map');
+            if (mapDiv) {
+                mapDiv.innerHTML = `<div class="p-4 text-center text-red-600 bg-red-100 rounded-lg">
+                                        <strong>Map Authentication Failed</strong><br>
+                                        Please check your Google Maps API key configuration in the Google Cloud Console. Verify billing, enabled APIs, and HTTP referrer restrictions.
+                                    </div>`;
+            }
+        };
+
+
+        // --- Authentication (No changes here) ---
+        onAuthStateChanged(auth, async (user) => {
+            const authSection = document.getElementById('auth-section');
+            const appContent = document.getElementById('app-content');
+            
+            if (user) {
+                authSection.style.display = 'none';
+                appContent.style.display = 'flex';
+                document.getElementById('user-info').textContent = user.displayName || user.email;
+
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    currentUserRole = userDocSnap.data().role;
+                } else {
+                    await setDoc(userDocRef, {
+                        name: user.displayName, email: user.email, role: 'user',
+                        createdAt: serverTimestamp()
+                    });
+                    currentUserRole = 'user';
+                }
+                
+                const vendorElements = document.querySelectorAll('#dashboard-nav-link, #dashboard-nav-link-mobile, #vendor-dashboard-card');
+                vendorElements.forEach(el => el.style.display = currentUserRole === 'vendor' ? 'block' : 'none');
+
+                loadUserVehicles(user.uid);
+                listenForChargers();
+                if (currentUserRole === 'vendor') setupVendorDashboard(user.uid);
+
+            } else {
+                authSection.style.display = 'flex';
+                appContent.style.display = 'none';
+                renderAuthForms();
+            }
+        });
+        const renderAuthForms = () => {
+            const authSection = document.getElementById('auth-section');
+            authSection.innerHTML = `
+                <div id="welcomeDiv" class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center">
+                    <h1 class="text-3xl font-bold text-indigo-600 mb-4">⚡ ChargeFranchise</h1>
+                    <p class="text-gray-600 mb-6">Your one-stop platform for EV charging.</p>
+                    <div class="space-y-4">
+                        <button onclick="showLogin()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Login</button>
+                        <button onclick="showSignUp()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700">Sign Up</button>
+                    </div>
+                </div>
+                <div id="signUpDiv" class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg" style="display:none;">
+                    <h2 class="text-2xl font-bold text-indigo-600 mb-6 text-center">Sign Up</h2>
+                    <div class="space-y-4">
+                        <input type="email" id="signupEmail" placeholder="Email" class="w-full p-3 border rounded-lg">
+                        <input type="password" id="signupPassword" placeholder="Password" class="w-full p-3 border rounded-lg">
+                        <input type="text" id="signupName" placeholder="Name" class="w-full p-3 border rounded-lg">
+                        <select id="signupRole" class="w-full p-3 border rounded-lg">
+                            <option value="user">User</option>
+                            <option value="vendor">Vendor</option>
+                        </select>
+                        <button onclick="signUp()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Create Account</button>
+                        <button onclick="googleLogin()" class="w-full flex items-center justify-center gap-3 bg-white text-gray-700 py-3 rounded-lg border hover:bg-gray-100">
+                            <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" class="h-5"> Sign up with Google
+                        </button>
+                        <div id="signupError" class="text-red-500 text-sm"></div>
+                        <button onclick="backToWelcome()" class="w-full bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-gray-500">Back</button>
+                    </div>
+                </div>
+                <div id="loginDiv" class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg" style="display:none;">
+                    <h2 class="text-2xl font-bold text-indigo-600 mb-6 text-center">Login</h2>
+                    <div class="space-y-4">
+                        <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 border rounded-lg">
+                        <input type="password" id="loginPassword" placeholder="Password" class="w-full p-3 border rounded-lg">
+                        <button onclick="login()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Login</button>
+                        <button onclick="googleLogin()" class="w-full flex items-center justify-center gap-3 bg-white text-gray-700 py-3 rounded-lg border hover:bg-gray-100">
+                           <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" class="h-5"> Sign in with Google
+                        </button>
+                        <div id="loginError" class="text-red-500 text-sm"></div>
+                        <button onclick="backToWelcome()" class="w-full bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-gray-500">Back</button>
+                    </div>
+                </div>
+            `;
+        };
+        
+        // --- Route Planning Logic ---
+
+        async function calculateOptimalRoute() {
+            const start = document.getElementById('route-start').value;
+            const end = document.getElementById('route-end').value;
+            const vehicleId = document.getElementById('vehicle-select').value;
+            const startCharge = parseInt(document.getElementById('start-charge').value, 10);
+            const endCharge = parseInt(document.getElementById('end-charge').value, 10);
+            const routeDetailsEl = document.getElementById('route-details');
+
+            clearRouteMarkers();
+            directionsRenderer.setDirections({routes: []});
+
+            if (!start || !end || !vehicleId) {
+                showMessage("Please provide start, destination, and select a vehicle.", 3000, 'error');
+                return;
+            }
+             if (isNaN(startCharge) || isNaN(endCharge) || startCharge < 0 || startCharge > 100 || endCharge < 0 || endCharge > 100) {
+                showMessage("Please enter valid start and end charge percentages (0-100).", 3000, 'error');
+                return;
+            }
+
+            const selectedVehicle = userVehicles.find(v => v.id === vehicleId);
+            if (!selectedVehicle) {
+                showMessage("Selected vehicle not found.", 3000, 'error');
+                return;
+            }
+
+            showMessage("Calculating optimal route...", 5000, 'info');
+            routeDetailsEl.innerHTML = `<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><p>Analyzing route and charging stops...</p></div>`;
+            routeDetailsEl.classList.remove('hidden');
+
+            const request = { origin: start, destination: end, travelMode: 'DRIVING' };
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    planRoute(result, selectedVehicle, startCharge, endCharge);
+                } else {
+                    showMessage(`Route calculation failed: ${status}`, 4000, 'error');
+                    routeDetailsEl.classList.add('hidden');
+                }
+            });
+        }
+
+        function planRoute(result, vehicle, startSoC, endSoC) {
+            const route = result.routes[0];
+            const leg = route.legs[0];
+            const BASE_EFFICIENCY_KWH_PER_KM = 0.18; // Average consumption
+
+            const usableBatteryKwh = vehicle.batteryCapacity * (startSoC / 100);
+            const vehicleRangeKm = usableBatteryKwh / BASE_EFFICIENCY_KWH_PER_KM;
+
+            if (leg.distance.value / 1000 <= vehicleRangeKm) {
+                const energyUsed = (leg.distance.value / 1000) * BASE_EFFICIENCY_KWH_PER_KM;
+                const finalSoC = ((usableBatteryKwh - energyUsed) / vehicle.batteryCapacity) * 100;
+                
+                if (finalSoC >= endSoC) {
+                    directionsRenderer.setDirections(result);
+                    displayRouteInfo(route.legs, [], vehicle);
+                    showMessage("Destination is within range. No charging stops needed!", 4000, 'success');
+                    return;
+                }
+            }
+            
+            findRouteWithCharging(route, vehicle, startSoC, endSoC);
+        }
+
+        function findRouteWithCharging(route, vehicle, startSoC, endSoC) {
+            const path = route.overview_path;
+            const BASE_EFFICIENCY_KWH_PER_KM = 0.18;
+            let waypoints = [];
+            let chargingStops = [];
+            let currentSoC = startSoC;
+            let distanceSinceLastCharge = 0;
+
+            for (let i = 0; i < path.length - 1; i++) {
+                const segmentDistance = google.maps.geometry.spherical.computeDistanceBetween(path[i], path[i+1]);
+                distanceSinceLastCharge += segmentDistance;
+
+                const energyForSegment = (segmentDistance / 1000) * BASE_EFFICIENCY_KWH_PER_KM;
+                const percentUsed = (energyForSegment / vehicle.batteryCapacity) * 100;
+                currentSoC -= percentUsed;
+                
+                if (currentSoC < 15) { 
+                    const bestCharger = findBestCharger(path[i], vehicle);
+                    if (bestCharger) {
+                        waypoints.push({ location: new google.maps.LatLng(bestCharger.location.latitude, bestCharger.location.longitude), stopover: true });
+                        chargingStops.push(bestCharger);
+                        currentSoC = 80; 
+                        distanceSinceLastCharge = 0;
+                    } else {
+                        showMessage("Cannot find a reachable charger. Route is not possible.", 5000, 'error');
+                        document.getElementById('route-details').classList.add('hidden');
+                        return;
+                    }
+                }
+            }
+
+            const request = {
+                origin: route.legs[0].start_location,
+                destination: route.legs[0].end_location,
+                travelMode: 'DRIVING', waypoints: waypoints
+            };
+
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(result);
+                    displayRouteInfo(result.routes[0].legs, chargingStops, vehicle);
+                    showMessage("Optimal route with charging stops found!", 4000, 'success');
+                } else { 
+                    showMessage("Failed to calculate final route with charging stops.", 4000, 'error'); 
+                }
+            });
+        }
+
+
+        function findBestCharger(currentLocation, vehicle) {
+            if (allChargers.length === 0) return null;
+
+            const reachableChargers = allChargers
+                .map(charger => {
+                    const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(currentLocation, chargerLoc);
+                    return { ...charger, distance };
+                })
+                .sort((a, b) => a.distance - b.distance); 
+
+            return reachableChargers[0];
+        }
+
+        function displayRouteInfo(legs, chargers, vehicle) {
+            const routeDetailsEl = document.getElementById('route-details');
+            let totalDistance = legs.reduce((sum, leg) => sum + leg.distance.value, 0);
+            let totalDuration = legs.reduce((sum, leg) => sum + leg.duration.value, 0);
+            let chargingTime = 0;
+            
+            chargers.forEach(charger => {
+                const energyNeeded = vehicle.batteryCapacity * 0.65; 
+                chargingTime += (energyNeeded / charger.rate) * 3600;
+            });
+
+            const totalTripTime = totalDuration + chargingTime;
+            
+            let html = `<h4 class="font-bold text-lg mb-2">Trip Summary</h4>
+                        <p><strong>Total Distance:</strong> ${(totalDistance / 1000).toFixed(1)} km</p>
+                        <p><strong>Driving Time:</strong> ${formatDuration(totalDuration)}</p>`;
+            if(chargers.length > 0) {
+                html += `<p><strong>Est. Charging Time:</strong> ${formatDuration(chargingTime)}</p>
+                         <p class="font-bold"><strong>Total Trip Time:</strong> ${formatDuration(totalTripTime)}</p>
+                         <h5 class="font-semibold mt-2">Charging Stops:</h5><ul class="list-disc pl-5">`;
+                chargers.forEach(c => { html += `<li>${c.name} (${c.rate} kW)</li>`; });
+                html += `</ul>`;
+            }
+            routeDetailsEl.innerHTML = html;
+            routeDetailsEl.classList.remove('hidden');
+
+            addRouteMarkers(legs, chargers);
+        }
+
+        // --- Data Loading and Real-time listeners ---
+        function listenForChargers() {
+            const q = query(collection(db, "chargers"));
+            onSnapshot(q, (querySnapshot) => {
+                allChargers = [];
+                querySnapshot.forEach((doc) => allChargers.push({ id: doc.id, ...doc.data() }));
+                updateChargerMapMarkers();
+            }, (error) => {
+                console.error("Error listening for chargers:", error);
+                showMessage("Could not load charger data.", 4000, 'error');
+            });
+        }
+        async function loadUserVehicles(uid) {
+            const q = query(collection(db, "users", uid, "vehicles"));
+            onSnapshot(q, (querySnapshot) => {
+                userVehicles = [];
+                const vehicleSelect = document.getElementById('vehicle-select');
+                if(vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select a vehicle</option>';
+                
+                querySnapshot.forEach((doc) => {
+                    const vehicle = { id: doc.id, ...doc.data() };
+                    userVehicles.push(vehicle);
+                    if(vehicleSelect){
+                        const option = document.createElement('option');
+                        option.value = vehicle.id;
+                        option.textContent = `${vehicle.make} ${vehicle.model} (${vehicle.batteryCapacity} kWh)`;
+                        vehicleSelect.appendChild(option);
+                    }
+                });
+                renderVehicleList();
+            });
+        }
+
+        // --- UI Rendering ---
+        function updateChargerMapMarkers() {
+            chargerMapMarkers.forEach(marker => marker.setMap(null));
+            chargerMapMarkers = [];
+            allChargers.forEach(charger => {
+                if (!charger.location || typeof charger.location.latitude !== 'number' || typeof charger.location.longitude !== 'number') {
+                    return;
+                }
+                const marker = new google.maps.Marker({
+                    position: { lat: charger.location.latitude, lng: charger.location.longitude },
+                    map: map, title: charger.name,
+                    icon: {
+                        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#4F46E5" width="32px" height="32px"><path d="M0 0h24v24H0z" fill="none"/><path d="M17 3H7v1.17C4.36 4.86 2 7.67 2 11v6.5A3.5 3.5 0 005.5 21h13a3.5 3.5 0 003.5-3.5V11c0-3.33-2.36-6.14-5-6.83V3zm-3.5 15.5h-3v-1h3v1zm0-3h-3v-1h3v1zm3.5-1.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>'),
+                        scaledSize: new google.maps.Size(32, 32)
+                    }
+                });
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>${charger.name}</strong><br>Rate: ${charger.rate} kW<br>Status: <span class="font-bold ${charger.status === 'available' ? 'text-green-600' : 'text-red-600'}">${charger.status}</span></div>`
+                });
+                marker.addListener('click', () => infoWindow.open(map, marker));
+                chargerMapMarkers.push(marker);
+            });
+        }
+        
+        function clearRouteMarkers() {
+            routeMapMarkers.forEach(marker => marker.setMap(null));
+            routeMapMarkers = [];
+        }
+
+        function addRouteMarkers(legs, chargers) {
+            clearRouteMarkers();
+            const startMarker = new google.maps.Marker({
+                position: legs[0].start_location,
+                map: map,
+                title: "Start",
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                    scaledSize: new google.maps.Size(40, 40)
+                }
+            });
+            routeMapMarkers.push(startMarker);
+
+            const endMarker = new google.maps.Marker({
+                position: legs[legs.length - 1].end_location,
+                map: map,
+                title: "Destination",
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                    scaledSize: new google.maps.Size(40, 40)
+                }
+            });
+            routeMapMarkers.push(endMarker);
+
+            chargers.forEach(charger => {
+                const chargerMarker = new google.maps.Marker({
+                    position: { lat: charger.location.latitude, lng: charger.location.longitude },
+                    map: map,
+                    title: `Charging Stop: ${charger.name}`,
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                        scaledSize: new google.maps.Size(40, 40)
+                    }
+                });
+                routeMapMarkers.push(chargerMarker);
+            });
+        }
+
+        function renderVehicleList() {
+            const listEl = document.getElementById('my-vehicles-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            if (userVehicles.length === 0) {
+                listEl.innerHTML = `<p class="text-gray-500">No vehicles added yet.</p>`;
+                return;
+            }
+            userVehicles.forEach(vehicle => {
+                const item = document.createElement('div');
+                item.className = 'bg-white p-4 rounded-lg shadow-sm flex justify-between items-center';
+                item.innerHTML = `<div><p class="font-semibold">${vehicle.make} ${vehicle.model}</p><p class="text-sm text-gray-600">Battery: ${vehicle.batteryCapacity} kWh</p></div>
+                                  <button onclick="deleteVehicle('${vehicle.id}')" class="text-red-500 hover:text-red-700 font-semibold p-2">- Delete</button>`;
+                listEl.appendChild(item);
+            });
+        }
+        
+        // --- Event Handlers & Actions ---
+
+        window.signUp = async () => {
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const name = document.getElementById('signupName').value;
+            const role = document.getElementById('signupRole').value;
+            const errorElement = document.getElementById('signupError');
+            errorElement.textContent = '';
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: name });
+                await setDoc(doc(db, 'users', userCredential.user.uid), {
+                    name, email, role, createdAt: serverTimestamp()
+                });
+                showMessage('Sign up successful!', 3000, 'success');
+            } catch (error) {
+                errorElement.textContent = error.message;
+            }
+        };
+
+        window.login = async () => {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorElement = document.getElementById('loginError');
+            errorElement.textContent = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showMessage('Login successful!', 3000, 'success');
+            } catch (error) {
+                errorElement.textContent = error.message;
+            }
+        };
+
+        window.googleLogin = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                showMessage('Logged in with Google!', 3000, 'success');
+            } catch (error) {
+                showMessage(`Google login failed: ${error.message}`, 5000, 'error');
+            }
+        };
+
+        window.logout = async () => { 
+            await signOut(auth); 
+            showMessage("Logged out successfully.", 3000, 'info'); 
+        };
+
+        window.submitVehicle = async () => {
+            const make = document.getElementById('vehicle-make').value;
+            const model = document.getElementById('vehicle-model').value;
+            const batteryCapacity = parseFloat(document.getElementById('battery-capacity').value);
+            const connectorType = document.getElementById('connector-type').value;
+
+            if (!make || !model || isNaN(batteryCapacity) || !connectorType) {
+                showMessage('Please fill all vehicle fields correctly.', 3000, 'error');
+                return;
+            }
+            try {
+                const user = auth.currentUser;
+                if (!user) throw new Error("User not logged in.");
+                await addDoc(collection(db, "users", user.uid, "vehicles"), {
+                    make, model, batteryCapacity, connectorType, createdAt: serverTimestamp()
+                });
+                showMessage('Vehicle added successfully!', 3000, 'success');
+                document.getElementById('vehicle-make').value = '';
+                document.getElementById('vehicle-model').value = '';
+                document.getElementById('battery-capacity').value = '';
+                document.getElementById('connector-type').value = '';
+            } catch (error) {
+                showMessage(`Error adding vehicle: ${error.message}`, 4000, 'error');
+            }
+        };
+
+        window.deleteVehicle = async (vehicleId) => {
+            if (!confirm("Are you sure you want to delete this vehicle?")) return;
+            try {
+                const user = auth.currentUser;
+                if (!user) throw new Error("User not logged in.");
+                await deleteDoc(doc(db, "users", user.uid, "vehicles", vehicleId));
+                showMessage('Vehicle deleted.', 3000, 'success');
+            } catch (error) {
+                showMessage(`Error deleting vehicle: ${error.message}`, 4000, 'error');
+            }
+        };
+
+        window.addCharger = async () => {
+            const name = document.getElementById('charger-name').value;
+            const rate = parseFloat(document.getElementById('charger-rate').value);
+            const lat = parseFloat(document.getElementById('charger-lat').value);
+            const lng = parseFloat(document.getElementById('charger-lng').value);
+            const type = document.getElementById('charger-type').value;
+
+            if (!name || isNaN(rate) || isNaN(lat) || isNaN(lng) || !type) {
+                showMessage('Please fill all charger fields correctly.', 3000, 'error');
+                return;
+            }
+            try {
+                const user = auth.currentUser;
+                if (!user) throw new Error("User not logged in.");
+                await addDoc(collection(db, "chargers"), {
+                    vendorId: user.uid,
+                    name, rate, 
+                    location: new GeoPoint(lat, lng),
+                    connectorType: type,
+                    status: 'available',
+                    createdAt: serverTimestamp()
+                });
+                showMessage('Charger added successfully!', 3000, 'success');
+                 document.getElementById('charger-name').value = '';
+                 document.getElementById('charger-rate').value = '';
+                 document.getElementById('charger-lat').value = '';
+                 document.getElementById('charger-lng').value = '';
+                 document.getElementById('charger-type').value = '';
+            } catch (error) {
+                 showMessage(`Error adding charger: ${error.message}`, 4000, 'error');
+            }
+        };
+
+        window.deleteCharger = async (chargerId) => {
+            if (!confirm("Are you sure you want to delete this charger?")) return;
+            try {
+                await deleteDoc(doc(db, "chargers", chargerId));
+                showMessage('Charger deleted.', 3000, 'success');
+            } catch (error) {
+                showMessage(`Error deleting charger: ${error.message}`, 4000, 'error');
+            }
+        };
+
+        window.setupVendorDashboard = (uid) => {
+            const chargersList = document.getElementById('vendor-chargers-list');
+            const q = query(collection(db, "chargers"), where("vendorId", "==", uid));
+
+            onSnapshot(q, (snapshot) => {
+                if (!chargersList) return;
+                chargersList.innerHTML = '';
+                if (snapshot.empty) {
+                    chargersList.innerHTML = `<p class="text-gray-500">No chargers added yet.</p>`;
+                    return;
+                }
+                snapshot.forEach((doc) => {
+                    const charger = doc.data();
+                    const item = document.createElement('div');
+                    item.className = 'bg-white p-4 rounded-lg shadow-sm flex justify-between items-center';
+                    item.innerHTML = `<div><p class="font-semibold">${charger.name}</p><p class="text-sm text-gray-600">${charger.rate} kW | ${charger.status}</p></div>
+                                      <button onclick="deleteCharger('${doc.id}')" class="text-red-500 hover:text-red-700 font-semibold p-2">- Delete</button>`;
+                    chargersList.appendChild(item);
+                });
+            });
+
+            const ctx = document.getElementById('chargingChart')?.getContext('2d');
+            if (ctx) {
+                if(chargingChart) chargingChart.destroy();
+                chargingChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Earnings (₹)',
+                            data: [600, 750, 900, 1000, 1100, 1250],
+                            borderColor: '#4ade80', tension: 0.1, backgroundColor: 'rgba(74, 222, 128, 0.2)', fill: true
+                        }]
+                    },
+                });
+            }
+        };
+
+        // --- Utility Functions (Attached to Window) ---
+        window.showMessage = (message, duration = 3000, type = 'info') => {
+            const msgBox = document.getElementById('message-box');
+            msgBox.querySelector('#message-text').textContent = message;
+            msgBox.className = `message-box show ${type}`;
+            setTimeout(() => window.hideMessage(), duration);
+        };
+        window.hideMessage = () => { document.getElementById('message-box').className = 'message-box'; };
+
+        window.showSection = (sectionId) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            const activeSection = document.getElementById(sectionId);
+            if (activeSection) {
+                activeSection.classList.add('active');
+                if (sectionId === 'find-chargers' && map) {
+                    google.maps.event.trigger(map, 'resize');
+                }
+            }
+        };
+
+        window.toggleMobileMenu = () => { 
+            const menuContainer = document.getElementById('mobile-menu-container');
+            menuContainer.classList.toggle('is-open');
+        };
+        
+        // *** UPDATED: Function now requests high accuracy for better results on mobile ***
+        window.setMyLocation = () => {
+            if (navigator.geolocation) {
+                showMessage("Getting your location...", 2000, 'info');
+                const options = {
+                    enableHighAccuracy: true, // Request a more precise location
+                    timeout: 5000, // Don't wait forever
+                    maximumAge: 0 // Don't use a cached position
+                };
+
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    };
+                    geocoder.geocode({ location: pos }, (results, status) => {
+                        if (status === "OK") {
+                            if (results[0]) {
+                                document.getElementById('route-start').value = results[0].formatted_address;
+                                map.setCenter(pos);
+                            } else {
+                                showMessage("No results found for your location.", 3000, 'error');
+                            }
+                        } else {
+                            showMessage("Geocoder failed due to: " + status, 3000, 'error');
+                        }
+                    });
+                }, (err) => {
+                     showMessage(`Geolocation failed: ${err.message}`, 4000, 'error');
+                }, options);
+            } else {
+                showMessage("Your browser doesn't support geolocation.", 3000, 'error');
+            }
+        };
+        
+        window.showLogin = () => { document.getElementById('welcomeDiv').style.display = 'none'; document.getElementById('signUpDiv').style.display = 'none'; document.getElementById('loginDiv').style.display = 'block'; };
+        window.showSignUp = () => { document.getElementById('welcomeDiv').style.display = 'none'; document.getElementById('loginDiv').style.display = 'none'; document.getElementById('signUpDiv').style.display = 'block'; };
+        window.backToWelcome = () => { document.getElementById('loginDiv').style.display = 'none'; document.getElementById('signUpDiv').style.display = 'none'; document.getElementById('welcomeDiv').style.display = 'block'; };
+        
+        window.calculateOptimalRoute = calculateOptimalRoute;
+        
+        function formatDuration(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            return `${h > 0 ? h + 'h ' : ''}${m}m`;
+        }
+    </script>
+</body>
+</html>
