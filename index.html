@@ -50,6 +50,14 @@
             color: #4f46e5; /* indigo-600 */
             font-weight: 600;
         }
+        .sort-btn.active-sort {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+        }
+        /* Ensure map container has a defined height */
+        #live-navigation {
+            height: calc(100vh - 150px); /* Full viewport height minus header/padding */
+        }
     </style>
 </head>
 
@@ -194,12 +202,21 @@
                                 <label for="end-charge" class="block text-sm font-medium text-gray-600">Desired Charge at Arrival: <span id="end-charge-value">20</span>%</label>
                                 <input type="range" id="end-charge" min="0" max="100" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                             </div>
+                            <div>
+                                <label for="search-radius" class="block text-sm font-medium text-gray-600">Charger Search Radius: <span id="search-radius-value">10</span> km</label>
+                                <input type="range" id="search-radius" min="5" max="50" value="10" step="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <label for="nearby-radius" class="block text-sm font-medium text-gray-600">Nearby Places Radius: <span id="nearby-radius-value">1</span> km</label>
+                                <input type="range" id="nearby-radius" min="1" max="5" value="1" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
                             <button id="find-route-btn" onclick="calculateOptimalRoute()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Find Optimal Route</button>
-                            <div id="route-details" class="mt-4 p-4 bg-blue-50 rounded-lg hidden"></div>
-                            <div id="nearby-places" class="mt-4 hidden"></div>
                         </div>
-                        <div class="lg:col-span-2">
-                            <div id="map" class="w-full h-[600px] rounded-lg shadow-md"></div>
+                        <div class="lg:col-span-2 space-y-4">
+                            <div id="route-details" class="p-4 bg-blue-50 rounded-lg hidden"></div>
+                            <div id="map" class="w-full h-[500px] rounded-lg shadow-md"></div>
+                             <!-- Nearby Places will be shown here after selecting a charger -->
+                            <div id="nearby-places" class="p-4 bg-gray-50 rounded-lg hidden"></div>
                         </div>
                     </div>
                 </div>
@@ -225,12 +242,21 @@
 
             <!-- Live Navigation Section -->
             <section id="live-navigation" class="section">
-                <div class="p-6 h-full flex flex-col">
+                <div class="p-6 h-full flex flex-col relative">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-3xl font-bold text-gray-800">Live Navigation</h2>
                         <button onclick="stopInAppNavigation()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors">Stop Navigation</button>
                     </div>
-                    <div id="live-navigation-map" class="w-full h-full rounded-lg shadow-md flex-grow"></div>
+                    <!-- Info box for selected nearby place -->
+                    <div id="selected-place-info" class="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-white p-3 rounded-lg shadow-lg hidden">
+                        <p class="font-bold text-indigo-600">Visiting:</p>
+                        <p id="selected-place-text" class="text-sm"></p>
+                    </div>
+                    <!-- Turn-by-turn directions panel -->
+                    <div id="turn-by-turn-directions" class="absolute top-20 left-4 z-10 bg-white p-4 rounded-lg shadow-lg w-full max-w-sm">
+                        <!-- Directions will be injected here by JS -->
+                    </div>
+                    <div id="live-navigation-map" class="w-full rounded-lg shadow-md flex-grow"></div>
                 </div>
             </section>
 
@@ -405,7 +431,7 @@
             appId: "1:77947942873:web:b8366adbb41f39b8a8cbc8"
         };
         // Use a placeholder for the Open Charge Map API key, which can be updated in the settings
-        let openChargeMapApiKey = "f2a24683-12b4-4b95-a4f7-7b2413a9486c"; 
+        let openChargeMapApiKey = "6aa27df2-0e7d-4ce3-9787-5e869d304fd7"; 
 
         // Firebase Service Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -430,14 +456,29 @@
 
         // Global App State
         let mainMap, nearMeMap, liveNavigationMap, directionsService, directionsRenderer, chargingChart, geocoder, placesService, vendorMap;
-        let currentLiveRoute = null;
         let allChargers = [];
         let userVehicles = [];
         let chargerMarkers = [];
         let nearMeChargerMarkers = [];
         let vendorChargerMarkers = [];
+        let userLocationMarker = null; // This will be the moving blue dot for live navigation
+        let nearMeUserMarker = null; // This is the static pin for the "Chargers Near Me" map
+        let watchId = null;
         const MASTER_KEY = "25annu30athu";
         let googleMapsLoaded = false;
+        let currentRoute = {
+            origin: null,
+            destination: null,
+            currentLocation: null,
+            vehicle: null,
+            fullDirectionsResult: null,
+            navigationDirections: null, // For storing the complete route for navigation
+            selectedChargerId: null,
+            chargersOnRoute: [],
+            selectedPlace: null, // To store info about a nearby place
+            currentLegIndex: 0,
+            currentStepIndex: 0
+        };
         
         // --- All functions are defined here for proper scoping ---
         
@@ -462,45 +503,21 @@
                 sectionElement.classList.add('active');
             }
 
-            // Trigger resize for maps when their section becomes visible
-            if (sectionId === 'find-chargers') {
-                if (!mainMap) {
-                    initUserMap();
-                } else {
-                    setTimeout(() => {
-                        const center = mainMap.getCenter();
-                        google.maps.event.trigger(mainMap, 'resize');
-                        if(center) mainMap.setCenter(center);
-                        updateMapMarkers(mainMap, chargerMarkers);
-                    }, 150);
+            // Trigger map resize for all maps to ensure they render correctly when their section becomes visible
+            setTimeout(() => {
+                if (mainMap && sectionId === 'find-chargers') {
+                    google.maps.event.trigger(mainMap, 'resize');
                 }
-            }
-             if (sectionId === 'chargers-near-me') {
-                if (!nearMeMap) {
-                    initChargersNearMeMap();
-                } else {
-                    setTimeout(() => {
-                        const center = nearMeMap.getCenter();
-                        google.maps.event.trigger(nearMeMap, 'resize');
-                        if (center) nearMeMap.setCenter(center);
-                        updateMapMarkers(nearMeMap, nearMeChargerMarkers);
-                    }, 150);
+                if (nearMeMap && sectionId === 'chargers-near-me') {
+                    google.maps.event.trigger(nearMeMap, 'resize');
                 }
-            }
-            if (sectionId === 'dashboard') {
-                setTimeout(() => {
-                    const activeTab = document.querySelector('.vendor-tab-content.active');
-                    if(activeTab && activeTab.id === 'my-vmap') {
-                        if (!vendorMap) {
-                            initVendorMap();
-                        } else {
-                            const center = vendorMap.getCenter();
-                            google.maps.event.trigger(vendorMap, 'resize');
-                            if(center) vendorMap.setCenter(center);
-                        }
-                    }
-                }, 150);
-            }
+                if (liveNavigationMap && sectionId === 'live-navigation') {
+                    google.maps.event.trigger(liveNavigationMap, 'resize');
+                }
+                if (vendorMap && sectionId === 'dashboard' && document.getElementById('my-vmap').classList.contains('active')) {
+                    google.maps.event.trigger(vendorMap, 'resize');
+                }
+            }, 150);
         };
 
         const toggleMobileMenu = () => {
@@ -626,21 +643,24 @@
             });
         };
 
-        const updateMapMarkers = (mapInstance, markerArray) => {
+        const updateMapMarkers = (mapInstance, markerArray, markersToShow) => {
             markerArray.forEach(marker => marker.setMap(null));
             markerArray.length = 0;
-            allChargers.forEach(charger => {
+
+            const markerData = markersToShow || allChargers;
+
+            markerData.forEach(charger => {
                 if (!charger.location) return;
-                let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+                let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Blue for available public
                 if (charger.type === 'home' || charger.IsPrivate) {
-                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/purple-dot.png'; // Purple for private/home
                 } else if (charger.status !== 'available') {
-                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'; // Red for in-use/maintenance
                 }
                 const marker = new google.maps.Marker({
                     position: { lat: charger.location.latitude, lng: charger.location.longitude },
                     map: mapInstance, title: charger.name || charger.AddressInfo?.Title,
-                    icon: { url: iconUrl, scaledSize: new google.maps.Size(40, 40) }
+                    icon: { url: iconUrl, scaledSize: new google.maps.Size(32, 32) }
                 });
                 const infoWindow = new google.maps.InfoWindow({
                     content: `<div><strong>${charger.name || charger.AddressInfo?.Title || 'N/A'}</strong><br>
@@ -652,14 +672,14 @@
             });
         };
         
-        const displayRouteInfo = (legs, chargers, vehicle, startLoc, endLoc, directionsResult) => {
+        const displayRouteInfo = (legs, chargers, vehicle, directionsResult) => {
             const routeDetailsEl = document.getElementById('route-details');
             let totalDistance = legs.reduce((sum, leg) => sum + leg.distance.value, 0);
             let totalDuration = legs.reduce((sum, leg) => sum + leg.duration.value, 0);
             let chargingTime = 0;
             chargers.forEach(charger => {
-                const energyNeeded = vehicle.batteryCapacity * 0.7;
-                chargingTime += (energyNeeded / charger.rate) * 3600;
+                const energyNeeded = vehicle.batteryCapacity * 0.7; // Assume charging from 10% to 80%
+                chargingTime += (energyNeeded / (charger.rate || 11)) * 3600; // Default to 11kW if rate is unknown
             });
             const totalTripTime = totalDuration + chargingTime;
             let html = `<h4 class="font-bold text-lg mb-2">Trip Summary</h4>
@@ -669,23 +689,126 @@
                 html += `<p><strong>Est. Charging Time:</strong> ${formatDuration(chargingTime)}</p>
                          <p class="font-bold"><strong>Total Trip Time:</strong> ${formatDuration(totalTripTime)}</p>
                          <h5 class="font-semibold mt-2">Charging Stops:</h5><ul class="list-disc pl-5">`;
-                chargers.forEach(c => { html += `<li>${c.name || c.AddressInfo?.Title} (${c.rate || c.Connections?.[0]?.PowerKW} kW)</li>`; });
+                chargers.forEach(c => { html += `<li>${c.name || c.AddressInfo?.Title} (${c.rate || c.Connections?.[0]?.PowerKW || 'N/A'} kW)</li>`; });
                 html += `</ul>`;
-                findNearbyPlaces(chargers[0].location);
             }
-            html += `<button onclick="startInAppNavigation(currentLiveRoute)" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600">Start Live Navigation</button>`;
+            html += `<button onclick="startInAppNavigation()" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600">Start Live Navigation</button>`;
             routeDetailsEl.innerHTML = html;
-
-            // Add pins for start, end, and stops
+            routeDetailsEl.classList.remove('hidden');
             addRouteMarkers(directionsResult, chargers);
+        };
+
+        const displayChargerOptions = async (chargers, directionsResult, vehicle) => {
+            const chargersWithTime = await Promise.all(chargers.map(async (charger) => {
+                const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
+                
+                const legToChargerPromise = new Promise((resolve) => {
+                    directionsService.route({
+                        origin: currentRoute.origin,
+                        destination: chargerLoc,
+                        travelMode: 'DRIVING'
+                    }, (result, status) => {
+                        if (status === 'OK') resolve(result.routes[0].legs[0]);
+                        else resolve(null);
+                    });
+                });
+
+                const legFromChargerPromise = new Promise((resolve) => {
+                    directionsService.route({
+                        origin: chargerLoc,
+                        destination: currentRoute.destination,
+                        travelMode: 'DRIVING'
+                    }, (result, status) => {
+                        if (status === 'OK') resolve(result.routes[0].legs[0]);
+                        else resolve(null);
+                    });
+                });
+
+                const [legToCharger, legFromCharger] = await Promise.all([legToChargerPromise, legFromChargerPromise]);
+
+                if (!legToCharger || !legFromCharger) return charger;
+
+                const drivingTimeToCharger = legToCharger.duration.value;
+                const drivingTimeFromCharger = legFromCharger.duration.value;
+                
+                const energyNeeded = vehicle.batteryCapacity * 0.7; // Assuming charge 70% of battery
+                const chargingTime = (energyNeeded / (charger.rate || 11)) * 3600;
+
+                const totalTripTime = drivingTimeToCharger + chargingTime + drivingTimeFromCharger;
+
+                return { ...charger, totalTripTime };
+            }));
+
+            currentRoute.chargersOnRoute = chargersWithTime;
+            
+            const routeDetailsEl = document.getElementById('route-details');
+            routeDetailsEl.classList.remove('hidden');
+            let html = `<div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-r-lg mb-4">
+                           <p class="font-bold">Action Required</p>
+                           <p>Your vehicle needs to charge to complete this trip. Please select a charging stop from the list below to proceed.</p>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-lg">Reachable Charging Stops</h4>
+                            <div id="sort-buttons" class="flex gap-2">
+                                <button onclick="sortAndRedisplayChargers('time')" class="sort-btn active-sort text-xs bg-gray-200 text-gray-800 px-3 py-1 rounded-full">Time</button>
+                                <button onclick="sortAndRedisplayChargers('speed')" class="sort-btn text-xs bg-gray-200 text-gray-800 px-3 py-1 rounded-full">Speed</button>
+                            </div>
+                        </div>
+                        <div id="charger-options-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                        </div>`;
+            
+            routeDetailsEl.innerHTML = html;
+            sortAndRedisplayChargers('time'); // Default sort by total time
+            addRouteMarkers(directionsResult, chargers);
+        };
+
+        const generateChargerListHTML = (chargers) => {
+            let listHtml = '';
+            if (chargers.length === 0) {
+                return '<p class="text-gray-500">No chargers to display.</p>';
+            }
+            chargers.forEach(charger => {
+                const rate = charger.rate || charger.Connections?.[0]?.PowerKW || 'N/A';
+                const status = charger.status || 'available';
+                const statusColor = status === 'available' ? 'text-green-600' : 'text-yellow-600';
+                const totalTimeText = charger.totalTripTime ? `Total: ${formatDuration(charger.totalTripTime)}` : 'Time N/A';
+
+                listHtml += `
+                <div class="bg-white p-3 rounded-lg shadow-sm cursor-pointer hover:bg-gray-100 transition-colors" onclick="recalculateRouteWithStop('${charger.id}')">
+                    <p class="font-semibold text-gray-800">${charger.name || charger.AddressInfo?.Title}</p>
+                    <div class="flex justify-between items-center text-sm mt-1">
+                        <span class="font-bold text-indigo-600">${rate} kW</span>
+                        <span class="text-gray-500 text-xs">${totalTimeText}</span>
+                        <span class="font-semibold ${statusColor}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                    </div>
+                </div>
+                `;
+            });
+            return listHtml;
+        }
+
+        const sortAndRedisplayChargers = (sortBy) => {
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active-sort'));
+            const activeButton = document.querySelector(`button[onclick="sortAndRedisplayChargers('${sortBy}')"]`);
+            if(activeButton) activeButton.classList.add('active-sort');
+
+            let sortedChargers = [...currentRoute.chargersOnRoute];
+            if (sortBy === 'speed') {
+                sortedChargers.sort((a, b) => (b.rate || 0) - (a.rate || 0));
+            } else if (sortBy === 'time') {
+                sortedChargers.sort((a, b) => (a.totalTripTime || Infinity) - (b.totalTripTime || Infinity));
+            }
+            const listContainer = document.getElementById('charger-options-list');
+            if (listContainer) {
+                listContainer.innerHTML = generateChargerListHTML(sortedChargers);
+            }
         };
         
         const addRouteMarkers = (directionsResult, chargers) => {
-            // Clear existing markers
             chargerMarkers.forEach(marker => marker.setMap(null));
             chargerMarkers = [];
 
-            // Start marker (Green)
+            // Start Marker (Green)
             const startMarker = new google.maps.Marker({
                 position: directionsResult.routes[0].legs[0].start_location,
                 map: mainMap,
@@ -697,9 +820,9 @@
             });
             chargerMarkers.push(startMarker);
 
-            // End marker (Red)
+            // End Marker (Red)
             const endMarker = new google.maps.Marker({
-                position: directionsResult.routes[0].legs[0].end_location,
+                position: currentRoute.destination,
                 map: mainMap,
                 title: 'Destination',
                 icon: {
@@ -709,14 +832,20 @@
             });
             chargerMarkers.push(endMarker);
 
-            // Charger stop markers (Blue)
+            // Charger Markers
             chargers.forEach(charger => {
+                let iconUrl;
+                if (charger.id === currentRoute.selectedChargerId) {
+                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Blue for the selected stop
+                } else {
+                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/orange-dot.png'; // Orange for other options
+                }
                 const stopMarker = new google.maps.Marker({
                     position: { lat: charger.location.latitude, lng: charger.location.longitude },
                     map: mainMap,
                     title: charger.name || charger.AddressInfo?.Title,
                     icon: {
-                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                        url: iconUrl,
                         scaledSize: new google.maps.Size(40, 40)
                     }
                 });
@@ -724,35 +853,190 @@
             });
         };
 
-        const startInAppNavigation = (directionsResult) => {
-            currentLiveRoute = directionsResult;
+        const startInAppNavigation = () => {
+            const directionsResult = currentRoute.navigationDirections;
+            if (!directionsResult) {
+                showMessage("No complete route available to navigate.", 3000, 'error');
+                return;
+            }
+
             showSection('live-navigation');
             
             const liveMapElement = document.getElementById('live-navigation-map');
             if (!liveNavigationMap) {
                 liveNavigationMap = new google.maps.Map(liveMapElement, {
-                    zoom: 10,
+                    zoom: 15,
                     center: directionsResult.routes[0].legs[0].start_location,
                     mapTypeControl: false,
                     mapTypeId: google.maps.MapTypeId.TERRAIN
                 });
             } else {
                 liveNavigationMap.setCenter(directionsResult.routes[0].legs[0].start_location);
-                liveNavigationMap.setZoom(10);
-                google.maps.event.trigger(liveNavigationMap, 'resize');
             }
 
-            const liveDirectionsRenderer = new google.maps.DirectionsRenderer({ map: liveNavigationMap });
+            // This timeout ensures the map renders correctly after the section is displayed
+            setTimeout(() => {
+                google.maps.event.trigger(liveNavigationMap, 'resize');
+                liveNavigationMap.setCenter(directionsResult.routes[0].legs[0].start_location);
+            }, 200);
+
+
+            const liveDirectionsRenderer = new google.maps.DirectionsRenderer({ map: liveNavigationMap, suppressMarkers: true });
             liveDirectionsRenderer.setDirections(directionsResult);
-            showMessage("Live navigation started!", 3000, 'success');
+
+            // Show selected place info if available
+            const placeInfoBox = document.getElementById('selected-place-info');
+            if (currentRoute.selectedPlace) {
+                document.getElementById('selected-place-text').textContent = `${currentRoute.selectedPlace.name} (${currentRoute.selectedPlace.vicinity})`;
+                placeInfoBox.classList.remove('hidden');
+            } else {
+                placeInfoBox.classList.add('hidden');
+            }
+
+            if (navigator.geolocation) {
+                if (userLocationMarker) userLocationMarker.setMap(null);
+                userLocationMarker = new google.maps.Marker({
+                    position: liveNavigationMap.getCenter(),
+                    map: liveNavigationMap,
+                    title: 'Your Location',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#4285F4',
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: 'white'
+                    }
+                });
+
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const pos = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        userLocationMarker.setPosition(pos);
+                        liveNavigationMap.panTo(pos);
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        showMessage("Failed to get live location. Check your device settings.", 4000, 'error');
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            } else {
+                showMessage("Geolocation is not supported by your browser.", 4000, 'error');
+            }
+            
+            // --- NEW: Initialize turn-by-turn display ---
+            currentRoute.currentLegIndex = 0;
+            currentRoute.currentStepIndex = 0;
+            displayCurrentStep();
+        };
+        
+        // --- NEW: Function to display the current navigation step ---
+        const displayCurrentStep = () => {
+            const directionsPanel = document.getElementById('turn-by-turn-directions');
+            if (!directionsPanel || !currentRoute.navigationDirections) {
+                return;
+            }
+
+            const route = currentRoute.navigationDirections.routes[0];
+            if (!route) {
+                directionsPanel.innerHTML = '<p>Route not available.</p>';
+                return;
+            }
+
+            const leg = route.legs[currentRoute.currentLegIndex];
+            const step = leg.steps[currentRoute.currentStepIndex];
+
+            if (!step) {
+                directionsPanel.innerHTML = `<div class="text-center p-4"><p class="text-lg font-bold text-green-600">You have arrived at your destination!</p></div>`;
+                return;
+            }
+
+            let html = `
+                <div class="p-2">
+                    <p class="text-sm text-gray-500">Next turn in: ${step.distance.text}</p>
+                    <div class="text-xl font-bold text-gray-800 my-2">${step.instructions}</div>
+                    <p class="text-sm text-gray-600">Remaining distance for this leg: ${leg.distance.text}</p>
+                </div>
+                <div class="flex justify-between mt-4 border-t pt-2">
+                    <button id="prev-step-btn" onclick="previousStep()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">&larr; Previous</button>
+                    <button id="next-step-btn" onclick="nextStep()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Next &rarr;</button>
+                </div>
+            `;
+            directionsPanel.innerHTML = html;
+            
+            // Disable buttons at the start/end of the route
+            if (currentRoute.currentLegIndex === 0 && currentRoute.currentStepIndex === 0) {
+                document.getElementById('prev-step-btn').disabled = true;
+                document.getElementById('prev-step-btn').classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            
+            const lastLegIndex = route.legs.length - 1;
+            const lastStepIndex = route.legs[lastLegIndex].steps.length - 1;
+            if (currentRoute.currentLegIndex === lastLegIndex && currentRoute.currentStepIndex === lastStepIndex) {
+                 document.getElementById('next-step-btn').textContent = 'Finish';
+            }
+        };
+
+        // --- NEW: Function to go to the next step ---
+        const nextStep = () => {
+            const route = currentRoute.navigationDirections.routes[0];
+            if (!route) return;
+
+            const leg = route.legs[currentRoute.currentLegIndex];
+            if (currentRoute.currentStepIndex < leg.steps.length - 1) {
+                currentRoute.currentStepIndex++;
+            } else if (currentRoute.currentLegIndex < route.legs.length - 1) {
+                currentRoute.currentLegIndex++;
+                currentRoute.currentStepIndex = 0;
+            } else {
+                 // Reached the end
+                stopInAppNavigation();
+                showMessage("You have arrived!", 4000, 'success');
+                return;
+            }
+            displayCurrentStep();
+        };
+
+        // --- NEW: Function to go to the previous step ---
+        const previousStep = () => {
+            const route = currentRoute.navigationDirections.routes[0];
+            if (!route) return;
+
+            if (currentRoute.currentStepIndex > 0) {
+                currentRoute.currentStepIndex--;
+            } else if (currentRoute.currentLegIndex > 0) {
+                currentRoute.currentLegIndex--;
+                const prevLeg = route.legs[currentRoute.currentLegIndex];
+                currentRoute.currentStepIndex = prevLeg.steps.length - 1;
+            }
+            displayCurrentStep();
         };
 
         const stopInAppNavigation = () => {
-            currentLiveRoute = null;
-            showSection('find-chargers'); // Or any other section you want to return to.
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            if (userLocationMarker) {
+                userLocationMarker.setMap(null);
+                userLocationMarker = null;
+            }
+            // Reset selected place when navigation stops
+            currentRoute.selectedPlace = null;
+            document.getElementById('selected-place-info').classList.add('hidden');
+            document.getElementById('turn-by-turn-directions').innerHTML = ''; // Clear directions
+
+            showSection('find-chargers'); 
+            showMessage("Live navigation stopped.", 3000, 'info');
         };
 
         const formatDuration = (seconds) => {
+            if (isNaN(seconds) || seconds === null) return 'N/A';
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
             return `${h > 0 ? h + 'h ' : ''}${m}m`;
@@ -771,7 +1055,6 @@
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name });
-                // ONLY add to 'users' collection.
                 await setDoc(doc(db, 'users', userCredential.user.uid), { name, email, role: 'user', createdAt: serverTimestamp() });
                 showMessage('Sign up successful!', 3000, 'success');
             } catch (error) { errorElement.textContent = error.message; }
@@ -783,14 +1066,12 @@
             const errorElement = document.getElementById('loginError');
             errorElement.textContent = '';
 
-            // Executive verification flow
             if (role === 'vendor' && password === MASTER_KEY) {
                 await executiveVerify(email);
                 return;
             }
 
             try {
-                // Regular user/vendor login
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 
                 if (role === 'user') {
@@ -806,7 +1087,6 @@
                     const vendorSnapshot = await getDocs(q);
                      if (!vendorSnapshot.empty) {
                          showMessage('Vendor login successful!', 3000, 'success');
-                         // The onAuthStateChanged listener will handle the redirect to settings if needed
                      } else {
                         await signOut(auth);
                         errorElement.textContent = `This account is not a registered vendor.`;
@@ -829,12 +1109,10 @@
                 const vendorName = requestDoc.data().name;
                 const tempKey = 'TEMP' + Math.random().toString(36).substr(2, 8).toUpperCase();
 
-                // Create a NEW user in Firebase Auth for the vendor
-                const userCredential = await createUserWithEmailAndPassword(auth, vendorEmail, tempKey);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, tempKey);
                 const vendorUid = userCredential.user.uid;
                 await updateProfile(userCredential.user, { displayName: vendorName });
 
-                // Create vendor document in 'vendors' collection
                 const vendorDocName = `${vendorName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_key`;
                 await setDoc(doc(db, "vendors", vendorDocName), {
                     uid: vendorUid,
@@ -844,11 +1122,9 @@
                     createdAt: serverTimestamp()
                 });
 
-                // Update the original request status to 'approved'
                 await updateDoc(requestDoc.ref, { status: "approved" });
 
                 showMessage(`Vendor ${vendorEmail} approved. Temporary key: ${tempKey}`, 10000, 'success');
-                // We sign out the executive so the new vendor can log in.
                 await signOut(auth);
             } catch (error) {
                 if (error.code === 'auth/email-already-in-use') {
@@ -864,7 +1140,6 @@
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
-                // Check if user exists in our 'users' collection, if not, create them.
                 const userDocRef = doc(db, "users", user.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (!userDocSnap.exists()) {
@@ -986,7 +1261,6 @@
             onSnapshot(q, (snapshot) => {
                 const vendorChargers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Update Manage Chargers List
                 if (chargersList) {
                     chargersList.innerHTML = vendorChargers.length === 0 ? `<p class="text-gray-500">No franchise chargers added yet.</p>` : '';
                     vendorChargers.forEach(charger => {
@@ -1005,7 +1279,6 @@
                     });
                 }
 
-                // Update Vendor Map Markers
                 if (vendorMap) {
                     vendorChargerMarkers.forEach(marker => marker.setMap(null));
                     vendorChargerMarkers = [];
@@ -1027,7 +1300,6 @@
                 }
             });
 
-            // Setup Chart
             const ctx = document.getElementById('chargingChart')?.getContext('2d');
             if (ctx) {
                 if(chargingChart) chargingChart.destroy();
@@ -1047,7 +1319,6 @@
                 });
             }
 
-            // Check if vendor has set a PIN and force them to settings if not
             const vendorQuery = query(collection(db, "vendors"), where("uid", "==", uid));
             const vendorSnapshot = await getDocs(vendorQuery);
             if (!vendorSnapshot.empty) {
@@ -1066,9 +1337,18 @@
         };
 
         const fetchOpenChargeMapData = async (bounds) => {
+            if (!openChargeMapApiKey) {
+                console.warn("Open Charge Map API key is not set. Skipping API call.");
+                return [];
+            }
+            if (!bounds) return [];
+
             const sw = bounds.getSouthWest();
             const ne = bounds.getNorthEast();
-            const url = `https://api.openchargemap.io/v3/poi/?output=json&latitude=${(sw.lat() + ne.lat()) / 2}&longitude=${(sw.lng() + ne.lng()) / 2}&distance=100&distanceunit=KM&maxresults=100&key=${openChargeMapApiKey}`;
+            const centerLat = (sw.lat() + ne.lat()) / 2;
+            const centerLng = (sw.lng() + ne.lng()) / 2;
+            
+            const url = `https://api.openchargemap.io/v3/poi/?output=json&latitude=${centerLat}&longitude=${centerLng}&distance=50&distanceunit=KM&maxresults=200&key=${openChargeMapApiKey}`;
             
             try {
                 const response = await fetch(url);
@@ -1087,7 +1367,7 @@
                         longitude: item.AddressInfo.Longitude
                     },
                     rate: item.Connections?.[0]?.PowerKW,
-                    status: 'available', // OCM data is often assumed available unless marked otherwise
+                    status: 'available',
                     type: 'ocm'
                 })).filter(c => c.location.latitude && c.location.longitude);
             } catch (error) {
@@ -1097,35 +1377,26 @@
             }
         };
 
-        const listenForChargers = () => {
-            // First, listen for changes in local chargers (home & franchise)
-            onSnapshot(query(collection(db, "chargers")), async (snapshot) => {
-                const localChargers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: doc.data().type }));
-                
-                // Get map bounds to fetch relevant OCM data
-                const mapBounds = mainMap ? mainMap.getBounds() : new google.maps.LatLngBounds(
-                    { lat: 8.4, lng: 68.7 }, // Approx SW India
-                    { lat: 37.1, lng: 97.4 }  // Approx NE India
-                );
-                const ocmChargers = await fetchOpenChargeMapData(mapBounds);
+        const updateAllChargers = async (mapBounds) => {
+            const q = query(collection(db, "chargers"));
+            const localChargersSnapshot = await getDocs(q);
+            const localChargers = localChargersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: doc.data().type }));
+            
+            const ocmChargers = await fetchOpenChargeMapData(mapBounds);
 
-                // Merge and deduplicate the charger lists
-                const mergedChargers = [...ocmChargers, ...localChargers];
-                const uniqueChargerIds = new Set();
-                allChargers = mergedChargers.filter(charger => {
-                    const isDuplicate = uniqueChargerIds.has(charger.id);
-                    uniqueChargerIds.add(charger.id);
-                    return !isDuplicate;
-                });
-                
-                // Update markers if maps are already loaded
-                if (mainMap) updateMapMarkers(mainMap, chargerMarkers);
-                if (nearMeMap) updateMapMarkers(nearMeMap, nearMeChargerMarkers);
-                if (vendorMap) updateVendorMapMarkers();
+            const mergedChargers = [...ocmChargers, ...localChargers];
+            const uniqueChargerIds = new Set();
+            allChargers = mergedChargers.filter(charger => {
+                const isDuplicate = uniqueChargerIds.has(charger.id);
+                uniqueChargerIds.add(charger.id);
+                return !isDuplicate;
             });
-        };
-        
 
+            if (mainMap) updateMapMarkers(mainMap, chargerMarkers);
+            if (nearMeMap) updateMapMarkers(nearMeMap, nearMeChargerMarkers);
+            if (vendorMap) updateVendorMapMarkers();
+        }
+        
         const listenForUserChargers = (uid) => {
             const q = query(collection(db, "chargers"), where("vendorId", "==", uid), where("type", "==", "home"));
             onSnapshot(q, (snapshot) => {
@@ -1166,59 +1437,28 @@
             routeDetailsEl.classList.remove('hidden');
 
             try {
-                // Use PlacesService to get locations from queries
                 const geocodeStartPromise = new Promise((resolve, reject) => {
-                    const request = { query: start, fields: ['geometry'] };
-                    placesService.findPlaceFromQuery(request, (results, status) => {
-                        if (status === 'OK' && results.length > 0) {
-                            resolve(results[0].geometry.location);
-                        } else {
-                            reject(`Could not find start location: ${status}`);
-                        }
+                    geocoder.geocode({ address: start }, (results, status) => {
+                        if (status === 'OK' && results.length > 0) resolve(results[0].geometry.location);
+                        else reject(`Could not find start location: ${status}`);
                     });
                 });
 
                 const geocodeEndPromise = new Promise((resolve, reject) => {
-                    const request = { query: end, fields: ['geometry'] };
-                    placesService.findPlaceFromQuery(request, (results, status) => {
-                        if (status === 'OK' && results.length > 0) {
-                            resolve(results[0].geometry.location);
-                        } else {
-                            reject(`Could not find end location: ${status}`);
-                        }
+                    geocoder.geocode({ address: end }, (results, status) => {
+                        if (status === 'OK' && results.length > 0) resolve(results[0].geometry.location);
+                        else reject(`Could not find end location: ${status}`);
                     });
                 });
 
                 const [startLocation, endLocation] = await Promise.all([geocodeStartPromise, geocodeEndPromise]);
 
-                const AVERAGE_EFFICIENCY_KWH_PER_KM = 0.18;
-                const totalRangeKm = selectedVehicle.batteryCapacity / AVERAGE_EFFICIENCY_KWH_PER_KM;
-                const initialRangeKm = totalRangeKm * (startCharge / 100);
-                const requiredEndRangeKm = totalRangeKm * (endCharge / 100);
+                currentRoute.origin = startLocation;
+                currentRoute.destination = endLocation;
+                currentRoute.currentLocation = startLocation;
+                currentRoute.vehicle = selectedVehicle;
                 
-                const request = {
-                    origin: startLocation,
-                    destination: endLocation,
-                    travelMode: 'DRIVING'
-                };
-                
-                directionsService.route(request, (result, status) => {
-                    if (status === 'OK') {
-                        currentLiveRoute = result; // Store the full route for live navigation
-                        const leg = result.routes[0].legs[0];
-                        const tripDistanceKm = leg.distance.value / 1000;
-                        if (initialRangeKm >= tripDistanceKm + requiredEndRangeKm) {
-                            directionsRenderer.setDirections(result);
-                            displayRouteInfo([leg], [], selectedVehicle, start, end, result);
-                            showMessage("No charging stops needed!", 4000, 'success');
-                        } else {
-                            findRouteWithCharging(result, totalRangeKm, initialRangeKm, requiredEndRangeKm, selectedVehicle, start, end);
-                        }
-                    } else {
-                        showMessage(`Route calculation failed: ${status}`, 4000, 'error');
-                        routeDetailsEl.classList.add('hidden');
-                    }
-                });
+                planNextLeg();
 
             } catch (error) {
                 showMessage(`Error: ${error}`, 4000, 'error');
@@ -1226,71 +1466,109 @@
             }
         };
 
-        const findRouteWithCharging = (directionsResult, totalRangeKm, initialRangeKm, requiredEndRangeKm, vehicle, start, end) => {
-             const route = directionsResult.routes[0];
-             const distanceToCover = route.legs[0].distance.value / 1000;
-             const rangeDeficit = (distanceToCover + requiredEndRangeKm) - initialRangeKm;
-             if(rangeDeficit <= 0) {
-                 directionsRenderer.setDirections(directionsResult);
-                 displayRouteInfo(route.legs, [], vehicle, start, end, directionsResult);
-                 return;
-             }
-             
-             const routePolyline = new google.maps.Polyline({path: route.overview_path});
-             const chargersOnRoute = allChargers.filter(c => {
-                 if (!c.location || c.status !== 'available') return false;
-                 // Filter out private chargers unless they are home chargers from our database
-                 if (c.IsPrivate && c.type !== 'home') return false;
+        const planNextLeg = async () => {
+            const { currentLocation, destination, vehicle } = currentRoute;
 
-                 const chargerLoc = new google.maps.LatLng(c.location.latitude, c.location.longitude);
-                 // Check if the charger is within a 4 km radius of the route
-                 const distance = google.maps.geometry.spherical.computeDistanceBetween(chargerLoc, route.overview_path[0]);
-                 let closestPointDistance = distance;
-                 for (let i = 1; i < route.overview_path.length; i++) {
-                     const dist = google.maps.geometry.spherical.computeDistanceBetween(chargerLoc, route.overview_path[i]);
-                     if (dist < closestPointDistance) {
-                         closestPointDistance = dist;
-                     }
-                 }
-                 return closestPointDistance <= 4000; // 4 km radius
-             });
-             
-             if (chargersOnRoute.length === 0) {
-                 showMessage("No suitable chargers found in our network along the route.", 5000, 'error');
-                 directionsRenderer.setDirections(directionsResult);
-                 return;
-             }
-             
-             // Find the best charger based on proximity to the route midpoint
-             const routeMidpoint = route.overview_path[Math.floor(route.overview_path.length / 2)];
-             let bestCharger = null;
-             let minDistanceToMidpoint = Infinity;
-             chargersOnRoute.forEach(charger => {
-                 const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
-                 const dist = google.maps.geometry.spherical.computeDistanceBetween(chargerLoc, routeMidpoint);
-                 if (dist < minDistanceToMidpoint) {
-                     minDistanceToMidpoint = dist;
-                     bestCharger = charger;
-                 }
-             });
+            const request = {
+                origin: currentLocation,
+                destination: destination,
+                travelMode: 'DRIVING'
+            };
 
-             if (!bestCharger) {
-                 showMessage("No suitable chargers found to add as a waypoint.", 5000, 'error');
-                 directionsRenderer.setDirections(directionsResult);
-                 return;
-             }
-             
-             const waypoints = [{ location: new google.maps.LatLng(bestCharger.location.latitude, bestCharger.location.longitude), stopover: true }];
-             const request = { origin: route.legs[0].start_location, destination: route.legs[0].end_location, travelMode: 'DRIVING', waypoints };
-             directionsService.route(request, (result, status) => {
-                 if (status === 'OK') {
-                     currentLiveRoute = result; // Store the new route with waypoints
-                     directionsRenderer.setDirections(result);
-                     displayRouteInfo(result.routes[0].legs, [bestCharger], vehicle, start, end, result);
-                     findNearbyPlaces(bestCharger.location); // Call to show nearby places
-                     showMessage("Optimal route with charging stop found!", 4000, 'success');
-                 } else { showMessage("Failed to recalculate route with stops.", 4000, 'error'); }
-             });
+            directionsService.route(request, async (result, status) => {
+                if (status === 'OK') {
+                    currentRoute.fullDirectionsResult = result;
+                    currentRoute.navigationDirections = result; // Store initial full route
+                    directionsRenderer.setDirections(result);
+                    const route = result.routes[0];
+                    const leg = route.legs[0];
+                    const distanceToCover = leg.distance.value / 1000;
+                    
+                    const AVERAGE_EFFICIENCY_KWH_PER_KM = 0.18;
+                    const totalRangeKm = vehicle.batteryCapacity / AVERAGE_EFFICIENCY_KWH_PER_KM;
+                    const currentCharge = parseInt(document.getElementById('start-charge').value, 10);
+                    const currentRangeKm = totalRangeKm * (currentCharge / 100);
+                    const requiredEndRangeKm = totalRangeKm * (parseInt(document.getElementById('end-charge').value, 10) / 100);
+                    
+                    if (currentRangeKm >= distanceToCover + requiredEndRangeKm) {
+                        displayRouteInfo([leg], [], vehicle, result);
+                        showMessage("Destination reachable without charging!", 4000, 'success');
+                        return;
+                    }
+                    
+                    const safetyBufferKm = totalRangeKm * 0.10; // 10% safety buffer
+                    const maxSafeTravelDistance = currentRangeKm - safetyBufferKm;
+                    const searchRadiusKm = parseInt(document.getElementById('search-radius').value, 10) * 1000; // in meters
+
+                    const chargersOnRoute = allChargers.filter(c => {
+                        if (!c.location || c.status !== 'available' || (c.type === 'home' && !c.IsPrivate)) {
+                            return false;
+                        }
+                        const chargerLoc = new google.maps.LatLng(c.location.latitude, c.location.longitude);
+
+                        const distanceToCharger = google.maps.geometry.spherical.computeDistanceBetween(currentLocation, chargerLoc) / 1000;
+                        if (distanceToCharger > maxSafeTravelDistance) {
+                            return false; 
+                        }
+
+                        for (let i = 0; i < route.overview_path.length; i++) {
+                            const pathPoint = route.overview_path[i];
+                            const distance = google.maps.geometry.spherical.computeDistanceBetween(chargerLoc, pathPoint);
+                            if (distance <= searchRadiusKm) { 
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                    
+                    if (chargersOnRoute.length > 0) {
+                        await displayChargerOptions(chargersOnRoute, result, vehicle);
+                        showMessage(`${chargersOnRoute.length} safely reachable chargers found near your route.`, 6000, 'info');
+                    } else {
+                        showMessage("No safely reachable chargers found in our network within your selected radius.", 5000, 'error');
+                        addRouteMarkers(result, []);
+                    }
+                } else {
+                    showMessage(`Route calculation failed: ${status}`, 4000, 'error');
+                }
+            });
+        };
+
+        const recalculateRouteWithStop = (chargerId) => {
+            const selectedCharger = allChargers.find(c => c.id === chargerId);
+            if (!selectedCharger) {
+                showMessage("Selected charger not found.", 3000, 'error');
+                return;
+            }
+            
+            const start = currentRoute.origin;
+            const chargerLocation = new google.maps.LatLng(selectedCharger.location.latitude, selectedCharger.location.longitude);
+            
+            const request = { 
+                origin: start, 
+                destination: currentRoute.destination,
+                waypoints: [{ location: chargerLocation, stopover: true }],
+                travelMode: 'DRIVING',
+            };
+            
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    currentRoute.navigationDirections = result; // This is the full, final route for navigation
+                    currentRoute.fullDirectionsResult = result; // This will be displayed on the map
+                    currentRoute.currentLocation = chargerLocation;
+                    currentRoute.selectedChargerId = chargerId;
+                    
+                    directionsRenderer.setDirections(result);
+                    displayRouteInfo(result.routes[0].legs, [selectedCharger], currentRoute.vehicle, result);
+                    
+                    // Call findNearbyPlaces for the selected charger's location
+                    findNearbyPlaces({latitude: selectedCharger.location.latitude, longitude: selectedCharger.location.longitude});
+                    showMessage(`Route updated to stop at ${selectedCharger.name || selectedCharger.AddressInfo?.Title}!`, 4000, 'success');
+
+                } else {
+                    showMessage(`Failed to recalculate route with stop: ${status}`, 4000, 'error');
+                }
+            });
         };
         
         const checkVendorApplicationStatus = async (uid) => {
@@ -1333,7 +1611,6 @@
             }
 
             try {
-                // Add a request to the 'vendor_requests' collection
                 await addDoc(collection(db, "vendor_requests"), {
                     userId: user.uid,
                     email: user.email,
@@ -1351,8 +1628,10 @@
         
         const findNearbyPlaces = (location) => {
             const nearbyPlacesContainer = document.getElementById('nearby-places');
-            nearbyPlacesContainer.innerHTML = '';
-            nearbyPlacesContainer.classList.remove('hidden');
+            nearbyPlacesContainer.innerHTML = ''; // Clear previous results
+            
+            const nearbyRadiusValue = document.getElementById('nearby-radius').value;
+            const radiusInMeters = nearbyRadiusValue * 1000;
 
             const placeTypes = {
                 'Restaurants': 'restaurant',
@@ -1361,17 +1640,23 @@
                 'Attractions': 'tourist_attraction'
             };
 
+            let contentFound = false;
+
             Object.entries(placeTypes).forEach(([title, type]) => {
                 const request = {
                     location: new google.maps.LatLng(location.latitude, location.longitude),
-                    radius: '2000',
+                    radius: radiusInMeters.toString(), // Use the dynamic radius
                     type: [type]
                 };
                 placesService.nearbySearch(request, (results, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                        contentFound = true;
                         let html = `<h4 class="font-bold text-lg mt-4 mb-2">${title} Nearby</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-2">`;
                         results.slice(0, 4).forEach(place => {
-                            html += `<div class="bg-white p-2 rounded-lg shadow-sm">
+                            // Use JSON.stringify to safely pass the place details as a string
+                            const placeName = place.name.replace(/'/g, "\\'");
+                            const placeVicinity = place.vicinity.replace(/'/g, "\\'");
+                            html += `<div class="bg-white p-2 rounded-lg shadow-sm cursor-pointer hover:bg-indigo-50" onclick="selectNearbyPlace('${placeName}', '${placeVicinity}')">
                                 <p class="font-semibold text-sm">${place.name}</p>
                                 <p class="text-xs text-gray-500">${place.vicinity}</p>
                             </div>`;
@@ -1381,6 +1666,21 @@
                     }
                 });
             });
+
+            // Only show the container if we expect content to be added
+            setTimeout(() => {
+                if(contentFound) {
+                    nearbyPlacesContainer.classList.remove('hidden');
+                } else {
+                    nearbyPlacesContainer.innerHTML = `<p class="text-gray-600">No popular places found within ${nearbyRadiusValue}km of the charger.</p>`;
+                    nearbyPlacesContainer.classList.remove('hidden');
+                }
+            }, 1500); // Wait for API calls to return
+        };
+
+        const selectNearbyPlace = (name, vicinity) => {
+            currentRoute.selectedPlace = { name, vicinity };
+            showMessage(`'${name}' selected for your stop. This will be shown during live navigation.`, 4000, 'success');
         };
 
         const locateMe = (mapId) => {
@@ -1398,6 +1698,24 @@
                         targetInput = document.getElementById('route-start');
                     } else if (mapId === 'near-me-map') {
                         targetMap = nearMeMap;
+                        
+                        // Add/update marker for user's location
+                        if (nearMeUserMarker) {
+                            nearMeUserMarker.setMap(null); // Remove old marker if it exists
+                        }
+                        nearMeUserMarker = new google.maps.Marker({
+                            position: pos,
+                            map: targetMap,
+                            title: 'Your Location',
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: '#4285F4', // A distinct blue color
+                                fillOpacity: 1,
+                                strokeWeight: 2,
+                                strokeColor: 'white'
+                            }
+                        });
                     }
 
                     if (targetMap) {
@@ -1441,8 +1759,12 @@
              if (endInput) new google.maps.places.Autocomplete(endInput);
              document.getElementById('start-charge').addEventListener('input', (e) => { document.getElementById('start-charge-value').textContent = e.target.value; });
              document.getElementById('end-charge').addEventListener('input', (e) => { document.getElementById('end-charge-value').textContent = e.target.value; });
+             document.getElementById('search-radius').addEventListener('input', (e) => { document.getElementById('search-radius-value').textContent = e.target.value; });
+             document.getElementById('nearby-radius').addEventListener('input', (e) => { document.getElementById('nearby-radius-value').textContent = e.target.value; });
              setupEnterKeyNavigation();
-             updateMapMarkers(mainMap, chargerMarkers);
+
+             mainMap.addListener('idle', () => updateAllChargers(mainMap.getBounds()));
+             updateAllChargers(mainMap.getBounds());
              console.log("User Map Initialized");
         };
 
@@ -1455,7 +1777,8 @@
                  mapTypeControl: false,
                  mapTypeId: google.maps.MapTypeId.TERRAIN
             });
-            updateMapMarkers(nearMeMap, nearMeChargerMarkers);
+            nearMeMap.addListener('idle', () => updateAllChargers(nearMeMap.getBounds()));
+            updateAllChargers(nearMeMap.getBounds());
             console.log("Chargers Near Me Map Initialized");
         };
 
@@ -1586,10 +1909,8 @@
             }
 
             try {
-                // Update the password in Firebase Auth
                 await updatePassword(user, newPin);
                 
-                // Find the vendor document and update the hasSetPin flag
                 const vendorQuery = query(collection(db, "vendors"), where("uid", "==", user.uid));
                 const vendorSnapshot = await getDocs(vendorQuery);
                 if (!vendorSnapshot.empty) {
@@ -1626,11 +1947,9 @@
             }
 
             try {
-                // Re-authenticate user before changing password for security
                 const credential = EmailAuthProvider.credential(user.email, currentPin);
                 await reauthenticateWithCredential(user, credential);
                 
-                // If re-authentication is successful, update the password
                 await updatePassword(user, newPin);
                 
                 showMessage("PIN changed successfully!", 3000, 'success');
@@ -1643,7 +1962,7 @@
         const initializeMapsAfterLogin = () => {
             if (googleMapsLoaded) return;
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCLrNaIQ1Eu-XpKws7J4MFbdxw01p0bEnc&libraries=places,geometry&callback=googleMapsApiLoaded`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCLrNaIQ1Eu-XpKws7J4MFbdxw01p0bEnc&libraries=places,geometry,drawing&callback=googleMapsApiLoaded`;
             script.async = true;
             script.defer = true;
             document.head.appendChild(script);
@@ -1652,9 +1971,11 @@
         window.googleMapsApiLoaded = () => {
             googleMapsLoaded = true;
             console.log("Google Maps API loaded.");
+            // Initialize maps that might be needed right away
+            initUserMap();
+            initChargersNearMeMap();
         };
 
-        // --- Attach functions to window ---
         Object.assign(window, {
             showMessage, hideMessage, showSection, toggleMobileMenu,
             showLogin, showSignUp, backToPortalChoice,
@@ -1664,10 +1985,11 @@
             submitVendorApplication, locateMe, showVendorTab, calculateROI, locateChargerOnMap,
             openEditModal, closeEditModal, updateCharger, setCustomPin, changeCustomPin,
             initUserMap, initChargersNearMeMap, initVendorMap, updateMapMarkers, updateVendorMapMarkers,
-            startInAppNavigation, stopInAppNavigation
+            startInAppNavigation, stopInAppNavigation, recalculateRouteWithStop,
+            sortAndRedisplayChargers, selectNearbyPlace,
+            nextStep, previousStep // Expose new functions to the window
         });
 
-        // --- Auth State Listener ---
         onAuthStateChanged(auth, async (user) => {
             const authSection = document.getElementById('auth-section');
             const appContent = document.getElementById('app-content');
@@ -1682,7 +2004,6 @@
                 const vendorSnapshot = await getDocs(vendorQuery);
                 if (!vendorSnapshot.empty) {
                     isVendor = true;
-                    // Get and set the OCM API key if it exists for the vendor
                     const vendorData = vendorSnapshot.docs[0].data();
                     if (vendorData.ocmApiKey) {
                         openChargeMapApiKey = vendorData.ocmApiKey;
@@ -1693,8 +2014,6 @@
 
                 document.querySelectorAll('.user-only-nav').forEach(el => el.style.display = isVendor ? 'none' : 'block');
                 document.querySelectorAll('.vendor-only-nav').forEach(el => el.style.display = isVendor ? 'block' : 'none');
-                
-                listenForChargers();
                 
                 if (isVendor) {
                     showSection('dashboard');
