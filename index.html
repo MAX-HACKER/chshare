@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChargeFranchise - EV Charging Platform</title>
-    <!-- Tailwind CSS for styling -->
+    <!-- Tailwind CSS for styling. NOTE: For production, it's recommended to install Tailwind via NPM/CLI. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +57,16 @@
         /* Ensure map container has a defined height */
         #live-navigation {
             height: calc(100vh - 150px); /* Full viewport height minus header/padding */
+        }
+        /* Style for alternative route options */
+        .route-option {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .route-option.selected-route {
+            border-color: #4f46e5; /* indigo-600 */
+            background-color: #e0e7ff; /* indigo-100 */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -186,6 +196,17 @@
                                     </button>
                                 </div>
                             </div>
+                            
+                            <!-- NEW: Waypoints UI -->
+                            <div id="waypoints-container" class="space-y-2"></div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600">Add Waypoint (for long trips)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="waypoint-input" placeholder="e.g. Delhi" class="w-full p-3 border rounded-lg">
+                                    <button onclick="addWaypoint()" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition-colors font-bold text-lg">+</button>
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-medium text-gray-600">Destination</label>
                                 <input type="text" id="route-end" placeholder="e.g. Pune" class="w-full p-3 border rounded-lg form-field">
@@ -210,7 +231,7 @@
                                 <label for="nearby-radius" class="block text-sm font-medium text-gray-600">Nearby Places Radius: <span id="nearby-radius-value">1</span> km</label>
                                 <input type="range" id="nearby-radius" min="1" max="5" value="1" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                             </div>
-                            <button id="find-route-btn" onclick="calculateOptimalRoute()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Find Optimal Route</button>
+                            <button id="find-route-btn" onclick="findAlternativeRoutes()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Find Available Routes</button>
                         </div>
                         <div class="lg:col-span-2 space-y-4">
                             <div id="route-details" class="p-4 bg-blue-50 rounded-lg hidden"></div>
@@ -455,7 +476,7 @@
         const storage = getStorage(app);
 
         // Global App State
-        let mainMap, nearMeMap, liveNavigationMap, directionsService, directionsRenderer, chargingChart, geocoder, placesService, vendorMap;
+        let mainMap, nearMeMap, liveNavigationMap, directionsService, chargingChart, geocoder, placesService, vendorMap;
         let allChargers = [];
         let userVehicles = [];
         let chargerMarkers = [];
@@ -466,23 +487,31 @@
         let watchId = null;
         const MASTER_KEY = "25annu30athu";
         let googleMapsLoaded = false;
+        let alternativeRouteRenderers = []; // To hold renderers for alternative routes
+        let segmentRenderers = []; // FIX: To hold renderers for intermediate planning segments
+        let waypoints = []; // To store user-added waypoints
+        
+        // --- RECTIFIED: Central state object for multi-leg route planning ---
         let currentRoute = {
             vehicle: null,
-            navigationDirections: null, // For storing the complete route for navigation
+            navigationDirections: null, // Stores the complete, final route for navigation
             selectedChargerId: null,
-            chargersOnRoute: [],
-            selectedPlace: null, // To store info about a nearby place
+            chargersOnRoute: [], // Holds options for the CURRENT leg being planned
+            selectedPlace: null,
             currentLegIndex: 0,
             currentStepIndex: 0,
-            isAtLegEnd: false, // Flag to indicate if we are at the end of a leg
-            // --- NEW properties for multi-leg planning ---
-            finalOrigin: null,
-            finalDestination: null,
-            currentOrigin: null,
-            plannedWaypoints: [],
-            isPlanning: false,
-            completeChargerList: [],
-            chargeAfterStop: 100 // Default charge after a stop
+            isAtLegEnd: false,
+            // --- Properties for the rectified multi-leg planning logic ---
+            finalOrigin: null,        // The user's ultimate starting point
+            finalDestination: null,   // The user's ultimate destination
+            currentOrigin: null,      // The starting point for the leg currently being planned
+            plannedWaypoints: [],     // An ordered list of selected charging stops
+            isPlanning: false,        // A flag to prevent concurrent planning operations
+            completeChargerList: [],  // A static list of all available chargers for the entire planning session
+            chargeAfterStop: 100,     // Default charge percentage assumed after a stop
+            // --- NEW: To store the full response with alternatives ---
+            alternativeRoutesResponse: null,
+            selectedRouteIndex: null
         };
         
         // --- All functions are defined here for proper scoping ---
@@ -683,7 +712,6 @@
                     ${charger.rate || charger.Connections?.[0]?.PowerKW || 'N/A'} kW | ${charger.type || (charger.IsPrivate ? 'Private' : 'Public')}<br>
                     Status: <span class="font-bold ${charger.status === 'available' ? 'text-green-600' : 'text-red-600'}">${charger.status || 'available'}</span>`;
 
-                // --- NEW: Add Navigate button for "Chargers Near Me" map ---
                 if (mapInstance === nearMeMap) {
                     infoWindowContent += `<br><button onclick="navigateToCharger(${charger.location.latitude}, ${charger.location.longitude})" class="mt-2 bg-indigo-500 text-white text-xs py-1 px-2 rounded-md hover:bg-indigo-600">Navigate</button>`;
                 }
@@ -719,124 +747,23 @@
             html += `<button onclick="startInAppNavigation()" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600">Start Live Navigation</button>`;
             routeDetailsEl.innerHTML = html;
             routeDetailsEl.classList.remove('hidden');
-            addRouteMarkers(directionsResult, chargers);
-        };
 
-        const displayChargerOptions = async (chargers, directionsResult, vehicle) => {
-            const chargersWithTime = await Promise.all(chargers.map(async (charger) => {
-                const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
-                
-                const legToChargerPromise = new Promise((resolve) => {
-                    directionsService.route({
-                        origin: currentRoute.currentOrigin, // Use currentOrigin for accurate time
-                        destination: chargerLoc,
-                        travelMode: 'DRIVING'
-                    }, (result, status) => {
-                        if (status === 'OK') resolve(result.routes[0].legs[0]);
-                        else resolve(null);
-                    });
-                });
-
-                const legFromChargerPromise = new Promise((resolve) => {
-                    directionsService.route({
-                        origin: chargerLoc,
-                        destination: currentRoute.finalDestination, // Use finalDestination
-                        travelMode: 'DRIVING'
-                    }, (result, status) => {
-                        if (status === 'OK') resolve(result.routes[0].legs[0]);
-                        else resolve(null);
-                    });
-                });
-
-                const [legToCharger, legFromCharger] = await Promise.all([legToChargerPromise, legFromChargerPromise]);
-
-                if (!legToCharger || !legFromCharger) return charger;
-
-                const drivingTimeToCharger = legToCharger.duration.value;
-                const drivingTimeFromCharger = legFromCharger.duration.value;
-                
-                const energyNeeded = vehicle.batteryCapacity * 0.7; // Assuming charge 70% of battery
-                const chargingTime = (energyNeeded / (charger.rate || 11)) * 3600;
-
-                const totalTripTime = drivingTimeToCharger + chargingTime + drivingTimeFromCharger;
-
-                return { ...charger, totalTripTime };
-            }));
-
-            currentRoute.chargersOnRoute = chargersWithTime;
-            
-            const routeDetailsEl = document.getElementById('route-details');
-            routeDetailsEl.classList.remove('hidden');
-            let html = `<div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-r-lg mb-4">
-                           <p class="font-bold">Action Required</p>
-                           <p>Your vehicle needs to charge to complete this leg of the trip. Please select a charging stop to proceed.</p>
-                        </div>
-                        <div class="flex justify-between items-center mb-2">
-                            <h4 class="font-bold text-lg">Reachable Charging Stops</h4>
-                            <div id="sort-buttons" class="flex gap-2">
-                                <button onclick="sortAndRedisplayChargers('distance')" class="sort-btn active-sort text-xs bg-gray-200 text-gray-800 px-3 py-1 rounded-full">Distance</button>
-                                <button onclick="sortAndRedisplayChargers('time')" class="sort-btn text-xs bg-gray-200 text-gray-800 px-3 py-1 rounded-full">Time</button>
-                                <button onclick="sortAndRedisplayChargers('speed')" class="sort-btn text-xs bg-gray-200 text-gray-800 px-3 py-1 rounded-full">Speed</button>
-                            </div>
-                        </div>
-                        <div id="charger-options-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                        </div>`;
-            
-            routeDetailsEl.innerHTML = html;
-            
-            const listContainer = document.getElementById('charger-options-list');
-            if (listContainer) {
-                listContainer.innerHTML = generateChargerListHTML(currentRoute.chargersOnRoute);
-            }
-            
-            directionsRenderer.setDirections(directionsResult); // Show the current leg on the map
-            addRouteMarkers(directionsResult, chargers);
-        };
-
-        const generateChargerListHTML = (chargers) => {
-            let listHtml = '';
-            if (chargers.length === 0) {
-                return '<p class="text-gray-500">No chargers to display.</p>';
-            }
-            chargers.forEach(charger => {
-                const rate = charger.rate || charger.Connections?.[0]?.PowerKW || 'N/A';
-                const status = charger.status || 'available';
-                const statusColor = status === 'available' ? 'text-green-600' : 'text-yellow-600';
-                const totalTimeText = charger.totalTripTime ? `Total: ${formatDuration(charger.totalTripTime)}` : 'Time N/A';
-
-                listHtml += `
-                <div class="bg-white p-3 rounded-lg shadow-sm cursor-pointer hover:bg-gray-100 transition-colors" onclick="selectChargerForNextLeg('${charger.id}')">
-                    <p class="font-semibold text-gray-800">${charger.name || charger.AddressInfo?.Title}</p>
-                    <div class="flex justify-between items-center text-sm mt-1">
-                        <span class="font-bold text-indigo-600">${rate} kW</span>
-                        <span class="text-gray-500 text-xs">${totalTimeText}</span>
-                        <span class="font-semibold ${statusColor}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                    </div>
-                </div>
-                `;
+            // Clear alternative routes and render the final one
+            clearAlternativeRoutes();
+            const finalRenderer = new google.maps.DirectionsRenderer({
+                map: mainMap,
+                directions: directionsResult,
+                suppressMarkers: true,
+                polylineOptions: {
+                    strokeColor: '#4f46e5', // A strong indigo for the final route
+                    strokeWeight: 6,
+                    strokeOpacity: 0.9
+                }
             });
-            return listHtml;
-        }
-
-        const sortAndRedisplayChargers = (sortBy) => {
-            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active-sort'));
-            const activeButton = document.querySelector(`button[onclick="sortAndRedisplayChargers('${sortBy}')"]`);
-            if(activeButton) activeButton.classList.add('active-sort');
-
-            let sortedChargers = [...currentRoute.chargersOnRoute];
-            if (sortBy === 'speed') {
-                sortedChargers.sort((a, b) => (b.rate || 0) - (a.rate || 0));
-            } else if (sortBy === 'time') {
-                sortedChargers.sort((a, b) => (a.totalTripTime || Infinity) - (b.totalTripTime || Infinity));
-            } else if (sortBy === 'distance') {
-                sortedChargers.sort((a, b) => b.distanceFromOrigin - a.distanceFromOrigin);
-            }
-            const listContainer = document.getElementById('charger-options-list');
-            if (listContainer) {
-                listContainer.innerHTML = generateChargerListHTML(sortedChargers);
-            }
+            alternativeRouteRenderers.push(finalRenderer);
+            addRouteMarkers(directionsResult, chargers);
         };
-        
+
         const addRouteMarkers = (directionsResult, chargers) => {
             chargerMarkers.forEach(marker => marker.setMap(null));
             chargerMarkers = [];
@@ -867,18 +794,12 @@
 
             // Charger Markers
             chargers.forEach(charger => {
-                let iconUrl;
-                if (charger.id === currentRoute.selectedChargerId) {
-                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Blue for the selected stop
-                } else {
-                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/orange-dot.png'; // Orange for other options
-                }
                 const stopMarker = new google.maps.Marker({
                     position: { lat: charger.location.latitude, lng: charger.location.longitude },
                     map: mainMap,
                     title: charger.name || charger.AddressInfo?.Title,
                     icon: {
-                        url: iconUrl,
+                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
                         scaledSize: new google.maps.Size(40, 40)
                     }
                 });
@@ -1393,27 +1314,38 @@
             }
         };
 
-        const fetchOpenChargeMapData = async (bounds) => {
-            if (!openChargeMapApiKey) {
-                console.warn("Open Charge Map API key is not set. Skipping API call.");
-                return [];
+        // --- RECTIFIED: Function to fetch charger data based on the states a route passes through ---
+        const fetchChargersForRoute = async (route) => {
+            // Step 1: Analyze the route to find all states it crosses.
+            const states = await getStatesFromRoute(route.overview_path);
+            if (states.size === 0) {
+                showMessage("Could not determine states for the selected route. Fetching nearby chargers instead.", 4000, 'error');
+                // Fallback to fetching all chargers if state detection fails
+                const allChargersSnapshot = await getDocs(query(collection(db, "chargers")));
+                return allChargersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
-            if (!bounds) return [];
+            showMessage(`Fetching chargers in ${[...states].join(', ')}...`, 4000, 'info');
 
-            const sw = bounds.getSouthWest();
-            const ne = bounds.getNorthEast();
-            const centerLat = (sw.lat() + ne.lat()) / 2;
-            const centerLng = (sw.lng() + ne.lng()) / 2;
-            
-            const url = `https://api.openchargemap.io/v3/poi/?output=json&latitude=${centerLat}&longitude=${centerLng}&distance=50&distanceunit=KM&maxresults=200&key=${openChargeMapApiKey}`;
-            
+            // Step 2: Fetch all local chargers from Firebase. They are always relevant.
+            const localChargersSnapshot = await getDocs(query(collection(db, "chargers")));
+            const localChargers = localChargersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Step 3: Fetch a broad set of chargers from OCM for the country (India).
+            // This is necessary because OCM API doesn't allow filtering by state directly.
+            const url = `https://api.openchargemap.io/v3/poi/?output=json&countrycode=IN&maxresults=5000&key=${openChargeMapApiKey}`;
+            let ocmChargers = [];
             try {
                 const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Open Charge Map API error: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Open Charge Map API error: ${response.statusText}`);
                 const data = await response.json();
-                return data.map(item => ({
+                
+                // Step 4: Filter the large OCM dataset to only include chargers in the relevant states.
+                const ocmChargersInRelevantStates = data.filter(charger => {
+                    const chargerState = charger.AddressInfo?.StateOrProvince;
+                    return chargerState && states.has(chargerState.toLowerCase());
+                });
+
+                ocmChargers = ocmChargersInRelevantStates.map(item => ({
                     id: `ocm-${item.ID}`,
                     name: item.AddressInfo.Title,
                     AddressInfo: item.AddressInfo,
@@ -1427,44 +1359,57 @@
                     status: 'available',
                     type: 'ocm'
                 })).filter(c => c.location.latitude && c.location.longitude);
+
             } catch (error) {
-                console.error("Error fetching Open Charge Map data:", error);
-                showMessage("Failed to load global charger data.", 5000, 'error');
-                return [];
+                console.error("Error fetching or filtering Open Charge Map data:", error);
+                showMessage("Failed to load some global charger data.", 5000, 'error');
             }
-        };
-        
-        // --- NEW: Centralized function to get all chargers before planning ---
-        const fetchAllChargerData = async () => {
-            const localChargersPromise = getDocs(query(collection(db, "chargers")));
-            const ocmChargersPromise = fetchOpenChargeMapData(mainMap.getBounds());
 
-            const [localChargersSnapshot, ocmChargers] = await Promise.all([localChargersPromise, ocmChargersPromise]);
-
-            const localChargers = localChargersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: doc.data().type }));
-
+            // Step 5: Merge and de-duplicate local and OCM chargers.
             const mergedChargers = [...ocmChargers, ...localChargers];
             const uniqueChargerIds = new Set();
-            const uniqueChargers = mergedChargers.filter(charger => {
+            return mergedChargers.filter(charger => {
                 const isDuplicate = uniqueChargerIds.has(charger.id);
                 uniqueChargerIds.add(charger.id);
                 return !isDuplicate;
             });
-            
-            allChargers = uniqueChargers; // Update global list for general map use
-            return uniqueChargers; // Return the complete list for planning
         };
 
-        const updateAllChargersOnIdle = async () => {
-            if (currentRoute.isPlanning) return; // Don't refresh while planning
-            await fetchAllChargerData();
-            if (mainMap) updateMapMarkers(mainMap, chargerMarkers);
-            if (nearMeMap) updateMapMarkers(nearMeMap, nearMeChargerMarkers);
-            if (vendorMap) updateVendorMapMarkers();
+        // --- NEW: Helper function to get a unique set of states from a route path ---
+        const getStatesFromRoute = async (path) => {
+            const states = new Set();
+            // Take a sample of points along the route to check for states
+            const sampleIndices = [
+                0, // Start
+                Math.floor(path.length * 0.25),
+                Math.floor(path.length * 0.5),
+                Math.floor(path.length * 0.75),
+                path.length - 1 // End
+            ];
+            
+            const geocodePromises = sampleIndices.map(index => {
+                return new Promise(resolve => {
+                    geocoder.geocode({ 'location': path[index] }, (results, status) => {
+                        if (status === 'OK' && results[0]) {
+                            for (const component of results[0].address_components) {
+                                if (component.types.includes('administrative_area_level_1')) {
+                                    states.add(component.long_name.toLowerCase());
+                                    break;
+                                }
+                            }
+                        }
+                        resolve();
+                    });
+                });
+            });
+
+            await Promise.all(geocodePromises);
+            return states;
         };
+
         
-        // --- REWRITTEN for multi-leg planning ---
-        const calculateOptimalRoute = async () => {
+        // --- Step 1 - Find and display alternative routes for the user to choose ---
+        const findAlternativeRoutes = async () => {
             if (currentRoute.isPlanning) {
                 showMessage("A route is already being planned.", 2000, 'info');
                 return;
@@ -1475,162 +1420,288 @@
             if (!start || !end || !vehicleId) {
                 showMessage("Please fill all fields.", 3000, 'error'); return;
             }
-            const selectedVehicle = userVehicles.find(v => v.id === vehicleId);
+
+            clearAlternativeRoutes();
+            chargerMarkers.forEach(m => m.setMap(null));
+            chargerMarkers = [];
+            
+            const request = {
+                origin: start,
+                destination: end,
+                travelMode: 'DRIVING',
+                provideRouteAlternatives: waypoints.length === 0, // Only provide alternatives if no waypoints are set
+                waypoints: waypoints.map(wp => ({ location: wp, stopover: true }))
+            };
+
+            directionsService.route(request, (response, status) => {
+                if (status === 'OK') {
+                    currentRoute.alternativeRoutesResponse = response; // Store the full response
+                    displayAlternativeRoutes(response);
+                } else {
+                    showMessage(`Could not find routes: ${status}`, 4000, 'error');
+                }
+            });
+        };
+
+        // --- Helper to render the route choices for the user ---
+        const displayAlternativeRoutes = (response) => {
+            const routeDetailsEl = document.getElementById('route-details');
+            let html = `<h3 class="text-xl font-bold mb-3 text-gray-800">Please select your preferred route:</h3><div class="space-y-3">`;
+
+            const colors = ['#4f46e5', '#16a34a', '#ca8a04']; // Indigo, Green, Amber
+
+            response.routes.forEach((route, index) => {
+                const leg = route.legs[0];
+                html += `
+                    <div id="route-option-${index}" class="route-option p-4 border-2 rounded-lg cursor-pointer bg-white shadow-sm" onclick="selectRouteForPlanning(${index})">
+                        <p class="font-bold text-lg text-indigo-700">Route ${index + 1} <span class="text-gray-600 font-medium text-base">(${route.summary || 'Main Route'})</span></p>
+                        <div class="flex justify-between text-sm mt-1">
+                            <span>${leg.distance.text}</span>
+                            <span>${leg.duration.text}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Create a new renderer for each route with a different color
+                const routeRenderer = new google.maps.DirectionsRenderer({
+                    map: mainMap,
+                    directions: response,
+                    routeIndex: index,
+                    suppressMarkers: true,
+                    polylineOptions: {
+                        strokeColor: colors[index % colors.length],
+                        strokeWeight: 6,
+                        strokeOpacity: index === 0 ? 0.9 : 0.6 // Make the primary route more opaque
+                    }
+                });
+                alternativeRouteRenderers.push(routeRenderer);
+            });
+
+            html += `</div><button id="plan-stops-btn" onclick="startStopPlanning()" class="mt-4 w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors hidden">Plan Charging Stops for Selected Route</button>`;
+            routeDetailsEl.innerHTML = html;
+            routeDetailsEl.classList.remove('hidden');
+
+            // If there's only one route (due to waypoints), auto-select it.
+            if (response.routes.length === 1) {
+                selectRouteForPlanning(0);
+            }
+        };
+        
+        // --- Function called when a user clicks on a route option ---
+        const selectRouteForPlanning = (routeIndex) => {
+            currentRoute.selectedRouteIndex = routeIndex;
+            
+            // Highlight the selected route in the UI
+            document.querySelectorAll('.route-option').forEach(el => el.classList.remove('selected-route'));
+            document.getElementById(`route-option-${routeIndex}`).classList.add('selected-route');
+
+            // Make the "Plan Stops" button visible
+            document.getElementById('plan-stops-btn').classList.remove('hidden');
+
+            // Make the selected route more prominent on the map
+            alternativeRouteRenderers.forEach((renderer, index) => {
+                renderer.setOptions({
+                    polylineOptions: {
+                        strokeOpacity: index === routeIndex ? 0.9 : 0.3,
+                        strokeWeight: index === routeIndex ? 8 : 6
+                    }
+                });
+            });
+        };
+
+        // --- RECTIFIED: Master planning function that breaks the trip into segments ---
+        const startStopPlanning = async () => {
+            if (currentRoute.selectedRouteIndex === null) {
+                showMessage("Please select a route first.", 3000, 'error'); return;
+            }
+            if (currentRoute.isPlanning) return;
+
+            const selectedVehicle = userVehicles.find(v => v.id === document.getElementById('vehicle-select').value);
             if (!selectedVehicle) {
                 showMessage("Vehicle not found.", 3000, 'error'); return;
             }
-            
+
             currentRoute.isPlanning = true;
-            showMessage("Fetching all charger data...", 5000, 'info');
-            document.getElementById('route-details').innerHTML = `<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><p>Fetching charger data...</p></div>`;
-            document.getElementById('route-details').classList.remove('hidden');
+            document.getElementById('route-details').innerHTML = `<div class="text-center p-4"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><p>Analyzing route...</p></div>`;
 
             try {
-                // --- FIX: Store the complete charger list in the route object ---
-                currentRoute.completeChargerList = await fetchAllChargerData();
-                showMessage("Calculating optimal route...", 5000, 'info');
-                document.getElementById('route-details').innerHTML = `<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><p>Analyzing route...</p></div>`;
+                const selectedRoute = currentRoute.alternativeRoutesResponse.routes[currentRoute.selectedRouteIndex];
+                currentRoute.completeChargerList = await fetchChargersForRoute(selectedRoute);
+                
+                const startLocation = selectedRoute.legs[0].start_location;
+                const endLocation = selectedRoute.legs[selectedRoute.legs.length - 1].end_location;
 
-
-                const geocodeStartPromise = new Promise((resolve, reject) => {
-                    geocoder.geocode({ address: start }, (results, status) => (status === 'OK') ? resolve(results[0].geometry.location) : reject(`Geocode failed: ${status}`));
+                // FIX: Geocode all string waypoints into LatLng objects first
+                const geocodePromises = waypoints.map(wp => {
+                    return new Promise((resolve, reject) => {
+                        geocoder.geocode({ address: wp }, (results, status) => {
+                            if (status === 'OK') {
+                                resolve(results[0].geometry.location);
+                            } else {
+                                reject(`Geocode failed for waypoint "${wp}": ${status}`);
+                            }
+                        });
+                    });
                 });
-                const geocodeEndPromise = new Promise((resolve, reject) => {
-                    geocoder.geocode({ address: end }, (results, status) => (status === 'OK') ? resolve(results[0].geometry.location) : reject(`Geocode failed: ${status}`));
-                });
-                const [startLocation, endLocation] = await Promise.all([geocodeStartPromise, geocodeEndPromise]);
+                const geocodedWaypoints = await Promise.all(geocodePromises);
 
-                // Initialize route state for a new plan
-                currentRoute.finalOrigin = startLocation;
-                currentRoute.finalDestination = endLocation;
-                currentRoute.currentOrigin = startLocation;
+                // Initialize state
                 currentRoute.vehicle = selectedVehicle;
                 currentRoute.plannedWaypoints = [];
                 currentRoute.navigationDirections = null;
                 delete currentRoute.chargeAfterStop;
 
-                await planNextLeg(); // Start the recursive planning process
+                // Create major segments: [start, waypoint1, waypoint2, ..., end]
+                const majorPoints = [startLocation, ...geocodedWaypoints, endLocation];
+                let allPlannedStops = [];
+
+                for (let i = 0; i < majorPoints.length - 1; i++) {
+                    const segmentStart = majorPoints[i];
+                    const segmentEnd = majorPoints[i + 1];
+                    
+                    showMessage(`Planning stops between ${await getAddress(segmentStart)} and ${await getAddress(segmentEnd)}...`, 4000, 'info');
+
+                    const segmentStops = await planSegment(segmentStart, segmentEnd);
+                    if (segmentStops === null) { // Planning failed for a segment
+                        throw new Error(`Could not find a valid charging path for the segment ending at ${await getAddress(segmentEnd)}.`);
+                    }
+                    allPlannedStops.push(...segmentStops);
+                    // After a segment, assume a full charge for the next one
+                    currentRoute.chargeAfterStop = 100;
+                }
+
+                currentRoute.plannedWaypoints = allPlannedStops;
+                
+                // Assemble the final grand route
+                // FIX: Clear temporary segment renderers before drawing the final route
+                clearSegmentRenderers();
+                const finalWaypoints = allPlannedStops.map(wp => ({ location: new google.maps.LatLng(wp.location.latitude, wp.location.longitude), stopover: true }));
+                const finalRequest = {
+                    origin: startLocation,
+                    destination: endLocation,
+                    waypoints: [...geocodedWaypoints.map(wp => ({ location: wp, stopover: true })), ...finalWaypoints],
+                    travelMode: 'DRIVING',
+                };
+
+                directionsService.route(finalRequest, (finalResult, finalStatus) => {
+                    if (finalStatus === 'OK') {
+                        currentRoute.navigationDirections = finalResult;
+                        displayRouteInfo(finalResult.routes[0].legs, allPlannedStops, selectedVehicle, finalResult);
+                        showMessage("Route planning complete!", 3000, 'success');
+                    } else {
+                        showMessage("Failed to assemble final route.", 4000, 'error');
+                    }
+                    currentRoute.isPlanning = false;
+                });
 
             } catch (error) {
-                showMessage(`Error: ${error}`, 4000, 'error');
-                document.getElementById('route-details').classList.add('hidden');
+                showMessage(`Error: ${error.message}`, 5000, 'error');
                 currentRoute.isPlanning = false;
             }
         };
 
-        const planNextLeg = async () => {
-            // --- FIX: Retrieve the complete list from the route object ---
-            const completeChargerList = currentRoute.completeChargerList;
-            const { currentOrigin, finalDestination, vehicle } = currentRoute;
-            
-            const request = { origin: currentOrigin, destination: finalDestination, travelMode: 'DRIVING' };
+        // --- NEW: Function to plan stops within a single major segment ---
+        const planSegment = (segmentStart, segmentEnd) => {
+            return new Promise(async (resolve) => {
+                let segmentWaypoints = [];
+                let currentLegOrigin = segmentStart;
+                let safetyCounter = 0; // Prevent infinite loops
 
-            directionsService.route(request, async (result, status) => {
-                if (status === 'OK') {
-                    const leg = result.routes[0].legs[0];
-                    const distanceToCover = leg.distance.value / 1000;
+                while(safetyCounter < 20) {
+                    safetyCounter++;
+                    const request = { origin: currentLegOrigin, destination: segmentEnd, travelMode: 'DRIVING' };
+                    const result = await new Promise(r => directionsService.route(request, (res, stat) => r({ res, stat })));
+
+                    if (result.stat !== 'OK') {
+                        resolve(null); // Segment is un-routable
+                        return;
+                    }
                     
+                    // FIX: Visualize the current segment being planned with a light gray color
+                    const segmentRenderer = new google.maps.DirectionsRenderer({
+                        map: mainMap,
+                        directions: result.res,
+                        suppressMarkers: true,
+                        preserveViewport: true, // Don't zoom in on each small segment
+                        polylineOptions: {
+                            strokeColor: '#9ca3af', // A light gray to show progress
+                            strokeWeight: 5,
+                            strokeOpacity: 0.8
+                        }
+                    });
+                    segmentRenderers.push(segmentRenderer);
+                    
+                    const leg = result.res.routes[0].legs[0];
+                    const distanceToCover = leg.distance.value / 1000;
+                    const { vehicle } = currentRoute;
                     const AVERAGE_EFFICIENCY_KWH_PER_KM = 0.18;
                     const totalRangeKm = vehicle.batteryCapacity / AVERAGE_EFFICIENCY_KWH_PER_KM;
                     const currentCharge = currentRoute.chargeAfterStop || parseInt(document.getElementById('start-charge').value, 10);
                     const currentRangeKm = totalRangeKm * (currentCharge / 100);
-                    const requiredEndRangeKm = totalRangeKm * (parseInt(document.getElementById('end-charge').value, 10) / 100);
-                    
-                    const isReachable = currentRangeKm >= distanceToCover + requiredEndRangeKm;
+                    const requiredEndRangeKm = totalRangeKm * 0.1; // 10% buffer for segment end
 
-                    if (isReachable) {
-                        // This is the final leg. Finish planning.
-                        const finalWaypoints = currentRoute.plannedWaypoints.map(wp => ({ location: new google.maps.LatLng(wp.location.latitude, wp.location.longitude), stopover: true }));
-                        const finalRequest = {
-                            origin: currentRoute.finalOrigin,
-                            destination: currentRoute.finalDestination,
-                            waypoints: finalWaypoints,
-                            travelMode: 'DRIVING'
-                        };
-                        directionsService.route(finalRequest, (finalResult, finalStatus) => {
-                            if (finalStatus === 'OK') {
-                                currentRoute.navigationDirections = finalResult;
-                                const chargers = currentRoute.plannedWaypoints;
-                                displayRouteInfo(finalResult.routes[0].legs, chargers, vehicle, finalResult);
-                                showMessage("Route planning complete!", 3000, 'success');
-                            } else {
-                                showMessage("Failed to assemble final route.", 4000, 'error');
-                            }
-                            currentRoute.isPlanning = false;
-                        });
-                    } else {
-                        // Not reachable, find a stop.
-                        const routePolyline = new google.maps.Polyline({
-                            path: result.routes[0].overview_path
-                        });
-                        const safetyBufferKm = totalRangeKm * 0.10; // 10% buffer
-                        const maxSafeTravelDistance = currentRangeKm - safetyBufferKm;
-                        
-                        const reachableChargers = completeChargerList.filter(c => {
-                            // --- NEW: Exclude already planned waypoints ---
-                            if (currentRoute.plannedWaypoints.some(wp => wp.id === c.id)) {
-                                return false;
-                            }
-                            if (!c.location || c.status !== 'available') return false;
-                            
-                            const chargerLoc = new google.maps.LatLng(c.location.latitude, c.location.longitude);
-                            
-                            const distanceToCharger = google.maps.geometry.spherical.computeDistanceBetween(currentOrigin, chargerLoc) / 1000;
-                            if (distanceToCharger > maxSafeTravelDistance) {
-                                return false;
-                            }
-
-                            const searchRadiusMeters = parseInt(document.getElementById('search-radius').value, 10) * 1000;
-                            if (!google.maps.geometry.poly.isLocationOnEdge(chargerLoc, routePolyline, searchRadiusMeters / 100000)) {
-                                 return false;
-                            }
-
-                            return true;
-                        });
-
-                        if (reachableChargers.length > 0) {
-                            const chargersWithDistance = reachableChargers.map(charger => {
-                                const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
-                                const distance = google.maps.geometry.spherical.computeDistanceBetween(currentOrigin, chargerLoc);
-                                return { ...charger, distanceFromOrigin: distance };
-                            });
-
-                            chargersWithDistance.sort((a, b) => b.distanceFromOrigin - a.distanceFromOrigin);
-                            const topFarthestChargers = chargersWithDistance.slice(0, 10);
-                            
-                            await displayChargerOptions(topFarthestChargers, result, vehicle);
-                            showMessage(`Showing the top ${topFarthestChargers.length} farthest reachable chargers on your route.`, 6000, 'info');
-
-                        } else {
-                            showMessage("Cannot find a reachable charger on your route for the next leg.", 5000, 'error');
-                            currentRoute.isPlanning = false;
-                        }
+                    if (currentRangeKm >= distanceToCover + requiredEndRangeKm) {
+                        resolve(segmentWaypoints); // Segment is complete
+                        return;
                     }
-                } else {
-                    showMessage(`Route calculation failed: ${status}`, 4000, 'error');
-                    currentRoute.isPlanning = false;
+
+                    const safetyBufferKm = totalRangeKm * 0.10;
+                    const maxSafeTravelDistance = currentRangeKm - safetyBufferKm;
+
+                    const reachableChargers = currentRoute.completeChargerList.filter(c => {
+                        // FIX: More robust check for duplicate stops
+                        const isAlreadyPlanned = [...currentRoute.plannedWaypoints, ...segmentWaypoints].some(wp => {
+                            const plannedLoc = new google.maps.LatLng(wp.location.latitude, wp.location.longitude);
+                            const currentLoc = new google.maps.LatLng(c.location.latitude, c.location.longitude);
+                            // Consider it a duplicate if it's within 100 meters
+                            return google.maps.geometry.spherical.computeDistanceBetween(plannedLoc, currentLoc) < 100;
+                        });
+                        if (isAlreadyPlanned) return false;
+
+                        if (!c.location || c.status !== 'available') return false;
+                        
+                        const chargerLoc = new google.maps.LatLng(c.location.latitude, c.location.longitude);
+                        const distanceToCharger = google.maps.geometry.spherical.computeDistanceBetween(currentLegOrigin, chargerLoc) / 1000;
+                        if (distanceToCharger > maxSafeTravelDistance) return false;
+
+                        const searchRadiusMeters = parseInt(document.getElementById('search-radius').value, 10) * 1000;
+                        return google.maps.geometry.poly.isLocationOnEdge(chargerLoc, new google.maps.Polyline({path: leg.steps.flatMap(step => step.path)}), searchRadiusMeters / 100000);
+                    });
+
+                    if (reachableChargers.length > 0) {
+                        const chargersWithDistance = reachableChargers.map(charger => {
+                            const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
+                            const distance = google.maps.geometry.spherical.computeDistanceBetween(currentLegOrigin, chargerLoc);
+                            return { ...charger, distanceFromOrigin: distance };
+                        });
+                        
+                        chargersWithDistance.sort((a, b) => b.distanceFromOrigin - a.distanceFromOrigin);
+                        const bestCharger = chargersWithDistance[0];
+
+                        segmentWaypoints.push(bestCharger);
+                        currentLegOrigin = new google.maps.LatLng(bestCharger.location.latitude, bestCharger.location.longitude);
+                        currentRoute.chargeAfterStop = 100;
+                    } else {
+                        resolve(null); // No chargers found, segment failed
+                        return;
+                    }
                 }
+                resolve(null); // Exceeded safety limit, fail the segment
             });
         };
 
-        const selectChargerForNextLeg = async (chargerId) => {
-            const selectedCharger = currentRoute.chargersOnRoute.find(c => c.id === chargerId);
-            if (!selectedCharger) {
-                showMessage("Selected charger not found.", 3000, 'error');
-                console.error("Charger ID not found in currentRoute.chargersOnRoute:", chargerId);
-                return;
-            }
-            
-            currentRoute.plannedWaypoints.push(selectedCharger);
-            currentRoute.currentOrigin = new google.maps.LatLng(selectedCharger.location.latitude, selectedCharger.location.longitude);
-            currentRoute.chargeAfterStop = 100; // Assume 100% charge after stopping
-            
-            showMessage(`Stop at ${selectedCharger.name} added. Planning next leg...`, 3000, 'info');
-            document.getElementById('route-details').innerHTML = `<div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><p>Planning next leg...</p></div>`;
-
-            await planNextLeg();
+        const getAddress = (latLng) => {
+            return new Promise(resolve => {
+                geocoder.geocode({ 'location': latLng }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        resolve(results[0].formatted_address.split(',').slice(0, 2).join(', '));
+                    } else {
+                        resolve("Unknown Location");
+                    }
+                });
+            });
         };
-        
+
         const checkVendorApplicationStatus = async (uid) => {
             const statusContainer = document.getElementById('vendor-application-status');
             const q = query(collection(db, "vendor_requests"), where("userId", "==", uid));
@@ -1708,6 +1779,8 @@
                     radius: radiusInMeters.toString(), // Use the dynamic radius
                     type: [type]
                 };
+                // NOTE: google.maps.places.PlacesService is deprecated.
+                // For production, migrate to the new Places API and google.maps.places.Place.
                 placesService.nearbySearch(request, (results, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
                         contentFound = true;
@@ -1800,7 +1873,6 @@
             }
         };
 
-        // --- NEW: Function to handle navigation from "Chargers Near Me" ---
         const navigateToCharger = (lat, lng) => {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
@@ -1831,7 +1903,6 @@
             }
         };
         
-        // --- NEW: Function to handle replanning from a stop ---
         const replanFromStop = async () => {
             const newCharge = parseInt(document.getElementById('charge-at-stop').value, 10);
             currentRoute.chargeAfterStop = newCharge;
@@ -1857,23 +1928,67 @@
                  mapTypeId: google.maps.MapTypeId.TERRAIN
              });
              directionsService = new google.maps.DirectionsService();
-             directionsRenderer = new google.maps.DirectionsRenderer({ map: mainMap, suppressMarkers: true });
              geocoder = new google.maps.Geocoder();
+             // NOTE: google.maps.places.PlacesService is deprecated.
+             // For production, migrate to the new Places API and google.maps.places.Place.
              placesService = new google.maps.places.PlacesService(mainMap);
              const startInput = document.getElementById('route-start');
              const endInput = document.getElementById('route-end');
+             const waypointInput = document.getElementById('waypoint-input');
+             // NOTE: google.maps.places.Autocomplete is deprecated.
+             // For production, migrate to the new Place Autocomplete and PlaceAutocompleteElement.
              if (startInput) new google.maps.places.Autocomplete(startInput);
              if (endInput) new google.maps.places.Autocomplete(endInput);
+             if (waypointInput) new google.maps.places.Autocomplete(waypointInput);
+
              document.getElementById('start-charge').addEventListener('input', (e) => { document.getElementById('start-charge-value').textContent = e.target.value; });
              document.getElementById('end-charge').addEventListener('input', (e) => { document.getElementById('end-charge-value').textContent = e.target.value; });
              document.getElementById('search-radius').addEventListener('input', (e) => { document.getElementById('search-radius-value').textContent = e.target.value; });
              document.getElementById('nearby-radius').addEventListener('input', (e) => { document.getElementById('nearby-radius-value').textContent = e.target.value; });
              setupEnterKeyNavigation();
-
-             mainMap.addListener('idle', updateAllChargersOnIdle);
-             updateAllChargersOnIdle();
              console.log("User Map Initialized");
         };
+        
+        // --- Helper to clear all route lines from the map ---
+        const clearAlternativeRoutes = () => {
+            alternativeRouteRenderers.forEach(renderer => renderer.setMap(null));
+            alternativeRouteRenderers = [];
+        };
+
+        // --- FIX: Helper to clear intermediate segment route lines ---
+        const clearSegmentRenderers = () => {
+            segmentRenderers.forEach(renderer => renderer.setMap(null));
+            segmentRenderers = [];
+        };
+
+        // --- NEW: Functions to manage waypoints ---
+        const addWaypoint = () => {
+            const waypointInput = document.getElementById('waypoint-input');
+            const location = waypointInput.value;
+            if (location) {
+                waypoints.push(location);
+                waypointInput.value = '';
+                renderWaypoints();
+            }
+        };
+
+        const removeWaypoint = (index) => {
+            waypoints.splice(index, 1);
+            renderWaypoints();
+        };
+
+        const renderWaypoints = () => {
+            const container = document.getElementById('waypoints-container');
+            container.innerHTML = '';
+            waypoints.forEach((wp, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-gray-200 p-2 rounded-lg';
+                div.innerHTML = `<span class="text-sm">${wp}</span>
+                                 <button onclick="removeWaypoint(${index})" class="text-red-500 font-bold text-lg">&times;</button>`;
+                container.appendChild(div);
+            });
+        };
+
 
         const initChargersNearMeMap = () => {
             if (nearMeMap) return;
@@ -1884,8 +1999,6 @@
                  mapTypeControl: false,
                  mapTypeId: google.maps.MapTypeId.TERRAIN
             });
-            nearMeMap.addListener('idle', updateAllChargersOnIdle);
-            updateAllChargersOnIdle();
             console.log("Chargers Near Me Map Initialized");
         };
 
@@ -1897,28 +2010,7 @@
                 center: defaultLocation,
                 mapTypeControl: false,
             });
-            updateVendorMapMarkers();
             console.log("Vendor Map Initialized");
-        };
-
-        const updateVendorMapMarkers = () => {
-            vendorChargerMarkers.forEach(marker => marker.setMap(null));
-            vendorChargerMarkers = [];
-            const bounds = new google.maps.LatLngBounds();
-            allChargers.filter(c => c.type === 'franchise').forEach(charger => {
-                if (!charger.location) return;
-                const pos = { lat: charger.location.latitude, lng: charger.location.longitude };
-                const marker = new google.maps.Marker({
-                    position: pos,
-                    map: vendorMap,
-                    title: charger.name
-                });
-                vendorChargerMarkers.push(marker);
-                bounds.extend(pos);
-            });
-             if (vendorChargerMarkers.length > 0) {
-                 vendorMap.fitBounds(bounds);
-             }
         };
 
         const showVendorTab = (tabId) => {
@@ -1928,7 +2020,7 @@
             document.querySelector(`.vendor-tab[onclick*="'${tabId}'"]`)?.classList.add('active');
             if (tabId === 'my-vmap') {
                 if (!vendorMap) {
-                    initVendorMap(allChargers);
+                    initVendorMap();
                 }
                 setTimeout(() => {
                     const center = vendorMap.getCenter();
@@ -2069,6 +2161,8 @@
         const initializeMapsAfterLogin = () => {
             if (googleMapsLoaded) return;
             const script = document.createElement('script');
+            // NOTE: For optimal performance, Google recommends adding the script tag directly to the HTML with the `async` attribute.
+            // Dynamically adding it here is a functional alternative.
             script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCLrNaIQ1Eu-XpKws7J4MFbdxw01p0bEnc&libraries=places,geometry,drawing&callback=googleMapsApiLoaded`;
             script.async = true;
             script.defer = true;
@@ -2088,13 +2182,16 @@
             showLogin, showSignUp, backToPortalChoice,
             signUp, login, googleLogin,
             logout: async () => { await signOut(auth); showMessage("Logged out successfully.", 3000, 'info'); },
-            calculateOptimalRoute, submitVehicle, deleteVehicle, addCharger, listHomeCharger, deleteCharger,
+            findAlternativeRoutes, 
+            submitVehicle, deleteVehicle, addCharger, listHomeCharger, deleteCharger,
             submitVendorApplication, locateMe, showVendorTab, calculateROI, locateChargerOnMap,
             openEditModal, closeEditModal, updateCharger, setCustomPin, changeCustomPin,
-            initUserMap, initChargersNearMeMap, initVendorMap, updateMapMarkers, updateVendorMapMarkers,
-            startInAppNavigation, stopInAppNavigation, selectChargerForNextLeg,
-            sortAndRedisplayChargers, selectNearbyPlace,
-            nextStep, previousStep, startNextLeg, navigateToCharger, replanFromStop // Expose new functions to the window
+            initUserMap, initChargersNearMeMap, initVendorMap, updateMapMarkers,
+            startInAppNavigation, stopInAppNavigation,
+            selectNearbyPlace,
+            nextStep, previousStep, startNextLeg, navigateToCharger, replanFromStop,
+            selectRouteForPlanning, startStopPlanning,
+            addWaypoint, removeWaypoint // Expose new waypoint functions
         });
 
         onAuthStateChanged(auth, async (user) => {
@@ -2128,7 +2225,6 @@
                 } else {
                     showSection('home');
                     loadUserVehicles(user.uid);
-                    listenForUserChargers(user.uid);
                     checkVendorApplicationStatus(user.uid);
                 }
             } else {
@@ -2140,3 +2236,4 @@
     </script>
 </body>
 </html>
+
