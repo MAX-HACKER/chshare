@@ -1498,7 +1498,6 @@
                 const geocodeEndPromise = new Promise((resolve, reject) => {
                     geocoder.geocode({ address: end }, (results, status) => (status === 'OK') ? resolve(results[0].geometry.location) : reject(`Geocode failed: ${status}`));
                 });
-
                 const [startLocation, endLocation] = await Promise.all([geocodeStartPromise, geocodeEndPromise]);
 
                 // Initialize route state for a new plan
