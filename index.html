@@ -495,6 +495,7 @@
         let chargerMarkers = [];
         let nearMeChargerMarkers = [];
         let vendorChargerMarkers = [];
+        let vendorChargersData = []; // To store vendor charger data for the map
         let userLocationMarker = null; // This will be the moving blue dot for live navigation
         let nearMeUserMarker = null; // This is the static pin for the "Chargers Near Me" map
         let watchId = null;
@@ -520,7 +521,7 @@
             plannedWaypoints: [],
             isPlanning: false,
             completeChargerList: [],
-            currentCharge: 100, // NEW: Tracks battery percentage throughout planning
+            currentCharge: 100, // Tracks battery percentage throughout planning
             alternativeRoutesResponse: null,
             selectedRouteIndex: null
         };
@@ -1106,12 +1107,30 @@
 
                 const requestDoc = querySnapshot.docs[0];
                 const vendorName = requestDoc.data().name;
-                const tempKey = 'TEMP' + Math.random().toString(36).substr(2, 8).toUpperCase();
+                
+                // Check if a user with this email already exists in Firestore
+                const userQuery = query(collection(db, "users"), where("email", "==", vendorEmail));
+                const userSnapshot = await getDocs(userQuery);
 
-                const userCredential = await createUserWithEmailAndPassword(auth, vendorEmail, tempKey);
-                const vendorUid = userCredential.user.uid;
-                await updateProfile(userCredential.user, { displayName: vendorName });
+                let vendorUid;
+                if (!userSnapshot.empty) {
+                    // User exists, promote them
+                    const userDoc = userSnapshot.docs[0];
+                    vendorUid = userDoc.id;
+                    await updateDoc(userDoc.ref, { role: "vendor" });
+                    showMessage(`User ${vendorEmail} has been promoted to a vendor. They can log in with their existing credentials.`, 6000, 'success');
+                } else {
+                    // User does not exist, create a new one
+                    const tempKey = 'TEMP' + Math.random().toString(36).substr(2, 8).toUpperCase();
+                    const userCredential = await createUserWithEmailAndPassword(auth, vendorEmail, tempKey);
+                    vendorUid = userCredential.user.uid;
+                    await updateProfile(userCredential.user, { displayName: vendorName });
+                    // Create a user doc for the new vendor
+                    await setDoc(doc(db, 'users', vendorUid), { name: vendorName, email: vendorEmail, role: 'vendor', createdAt: serverTimestamp() });
+                    showMessage(`New vendor ${vendorEmail} created. Temporary key: ${tempKey}`, 10000, 'success');
+                }
 
+                // Create the vendor document
                 const vendorDocName = `${vendorName.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_key`;
                 await setDoc(doc(db, "vendors", vendorDocName), {
                     uid: vendorUid,
@@ -1122,15 +1141,10 @@
                 });
 
                 await updateDoc(requestDoc.ref, { status: "approved" });
-
-                showMessage(`Vendor ${vendorEmail} approved. Temporary key: ${tempKey}`, 10000, 'success');
                 await signOut(auth);
+
             } catch (error) {
-                if (error.code === 'auth/email-already-in-use') {
-                     showMessage("This email is already registered as a user. To proceed, you must first delete this user from the Firebase Authentication tab, then the executive can approve them.", 8000, 'error');
-                } else {
-                    showMessage(`Verification failed: ${error.message}`, 5000, 'error');
-                }
+                showMessage(`Verification failed: ${error.message}`, 5000, 'error');
             }
         };
 
@@ -1259,11 +1273,11 @@
             const q = query(collection(db, "chargers"), where("vendorId", "==", uid), where("type", "==", "franchise"));
             
             onSnapshot(q, (snapshot) => {
-                const vendorChargers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                vendorChargersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 if (chargersList) {
-                    chargersList.innerHTML = vendorChargers.length === 0 ? `<p class="text-gray-500">No franchise chargers added yet.</p>` : '';
-                    vendorChargers.forEach(charger => {
+                    chargersList.innerHTML = vendorChargersData.length === 0 ? `<p class="text-gray-500">No franchise chargers added yet.</p>` : '';
+                    vendorChargersData.forEach(charger => {
                         const item = document.createElement('div');
                         item.className = 'bg-white p-4 rounded-lg shadow-sm flex justify-between items-center';
                         item.innerHTML = `<div>
@@ -1278,26 +1292,7 @@
                         chargersList.appendChild(item);
                     });
                 }
-
-                if (vendorMap) {
-                    vendorChargerMarkers.forEach(marker => marker.setMap(null));
-                    vendorChargerMarkers = [];
-                    const bounds = new google.maps.LatLngBounds();
-                    vendorChargers.forEach(charger => {
-                        if (!charger.location) return;
-                        const pos = { lat: charger.location.latitude, lng: charger.location.longitude };
-                        const marker = new google.maps.Marker({
-                            position: pos,
-                            map: vendorMap,
-                            title: charger.name
-                        });
-                        vendorChargerMarkers.push(marker);
-                        bounds.extend(pos);
-                    });
-                    if (!snapshot.empty) {
-                        vendorMap.fitBounds(bounds);
-                    }
-                }
+                renderVendorMapMarkers();
             });
 
             const ctx = document.getElementById('chargingChart')?.getContext('2d');
@@ -1333,6 +1328,30 @@
                     showSection('dashboard');
                     showVendorTab('vendor-settings');
                 }
+            }
+        };
+
+        const renderVendorMapMarkers = () => {
+            if (!vendorMap || !vendorChargersData) return;
+            
+            vendorChargerMarkers.forEach(marker => marker.setMap(null));
+            vendorChargerMarkers = [];
+            const bounds = new google.maps.LatLngBounds();
+            
+            vendorChargersData.forEach(charger => {
+                if (!charger.location) return;
+                const pos = { lat: charger.location.latitude, lng: charger.location.longitude };
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map: vendorMap,
+                    title: charger.name
+                });
+                vendorChargerMarkers.push(marker);
+                bounds.extend(pos);
+            });
+
+            if (vendorChargersData.length > 0) {
+                vendorMap.fitBounds(bounds);
             }
         };
 
@@ -2068,6 +2087,7 @@
                 center: defaultLocation,
                 mapTypeControl: false,
             });
+            renderVendorMapMarkers(); // Draw markers as soon as map is ready
             console.log("Vendor Map Initialized");
         };
 
