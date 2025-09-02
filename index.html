@@ -11,69 +11,308 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js for data visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js for data visualization (pinned version for stable sourcemaps) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #06b6d4;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="dark"] {
+            --primary: #818cf8;
+            --primary-dark: #6366f1;
+            --secondary: #f472b6;
+            --accent: #22d3ee;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --glass-bg: rgba(0, 0, 0, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="cyberpunk"] {
+            --primary: #ff0080;
+            --primary-dark: #e6007a;
+            --secondary: #00ffff;
+            --accent: #ffff00;
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a0a1a;
+            --bg-tertiary: #2a1a2a;
+            --text-primary: #00ffff;
+            --text-secondary: #ff0080;
+            --text-muted: #808080;
+            --border: #ff0080;
+            --shadow: rgba(255, 0, 128, 0.3);
+            --glass-bg: rgba(255, 0, 128, 0.1);
+            --glass-border: rgba(255, 0, 128, 0.2);
+        }
+
+        [data-theme="ocean"] {
+            --primary: #0891b2;
+            --primary-dark: #0e7490;
+            --secondary: #06b6d4;
+            --accent: #67e8f9;
+            --bg-primary: #f0f9ff;
+            --bg-secondary: #e0f2fe;
+            --bg-tertiary: #bae6fd;
+            --text-primary: #0c4a6e;
+            --text-secondary: #075985;
+            --text-muted: #0369a1;
+            --border: #7dd3fc;
+            --shadow: rgba(14, 116, 144, 0.2);
+            --glass-bg: rgba(6, 182, 212, 0.1);
+            --glass-border: rgba(6, 182, 212, 0.2);
+        }
+
+        * { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-attachment: fixed;
         }
-        .section, .vendor-tab-content { display: none; }
-        .section.active, .vendor-tab-content.active { display: block; animation: fadeIn 0.8s ease-in-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        /* Glass Morphism Effects */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px var(--shadow);
+            color: var(--text-primary);
         }
-        .message-box {
-            position: fixed; top: 20px; right: 20px;
-            padding: 1rem 2rem; border-radius: 8px; z-index: 3001;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-            transform: translateX(120%); opacity: 0; display: none;
+
+        .glass-card {
+            background: var(--bg-primary);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 4px 24px var(--shadow);
+            color: var(--text-primary);
         }
+
+        /* Animated Background */
+        .animated-bg { position: relative; overflow-x: hidden; }
+        .animated-bg::before {
+            content: '';
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(circle at 20% 80%, var(--primary) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, var(--secondary) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, var(--accent) 0%, transparent 50%);
+            opacity: 0.1; animation: float 20s ease-in-out infinite; pointer-events: none; z-index: 0;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0,0) rotate(0deg); }
+            33% { transform: translate(30px,-30px) rotate(120deg); }
+            66% { transform: translate(-20px,20px) rotate(240deg); }
+        }
+
+        /* Neon Glow */
+        .neon-glow {
+            box-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary), 0 0 15px var(--primary), 0 0 20px var(--primary);
+            animation: neon-pulse 2s ease-in-out infinite alternate;
+        }
+        @keyframes neon-pulse {
+            from { box-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary), 0 0 15px var(--primary); }
+            to { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary), 0 0 30px var(--primary); }
+        }
+
+        /* Buttons */
+        .btn-modern {
+            position: relative; overflow: hidden; background: linear-gradient(45deg, var(--primary), var(--primary-dark));
+            border: none; color: white; font-weight: 600; border-radius: 12px; padding: 12px 24px; cursor: pointer;
+            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn-modern:hover { transform: translateY(-2px); box-shadow: 0 8px 25px var(--shadow); }
+        .btn-modern::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        .btn-modern:hover::before { left: 100%; }
+
+        /* Inputs */
+        .form-input { background: var(--bg-primary); border: 2px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text-primary); font-size: 16px; }
+        .form-input::placeholder { color: var(--text-muted); opacity: 1; }
+        .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); transform: scale(1.02); }
+
+        /* Ensure legacy form-field class inherits the new form-input look */
+        .form-field { background: var(--bg-primary); border: 2px solid var(--border); border-radius: 12px; color: var(--text-primary); }
+        .form-field::placeholder { color: var(--text-muted); opacity: 1; }
+        select.form-field, select.form-input { color: var(--text-primary); }
+        select.form-field option, select.form-input option { color: var(--text-primary); background: var(--bg-primary); }
+
+        /* Cards */
+        .feature-card { background: var(--bg-primary); border-radius: 20px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 4px 24px var(--shadow); position: relative; overflow: hidden; }
+        .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent)); }
+        .feature-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 12px 40px var(--shadow); }
+
+        /* Navigation */
+        .nav-glass { background: var(--glass-bg); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid var(--glass-border); color: var(--text-primary); }
+
+        /* Section animation */
+        .section, .vendor-tab-content { display: none; opacity: 0; }
+        .section.active, .vendor-tab-content.active { display: block; animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* Theme selector */
+        .theme-selector { display: flex; align-items: center; gap: 8px; }
+        .theme-option { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+        .theme-option.active { border-color: var(--accent); transform: scale(1.2); box-shadow: 0 0 10px var(--accent); }
+        .theme-light { background: linear-gradient(45deg, #6366f1, #ec4899); }
+        .theme-dark { background: linear-gradient(45deg, #1e293b, #0f172a); }
+        .theme-cyberpunk { background: linear-gradient(45deg, #ff0080, #00ffff); }
+        .theme-ocean { background: linear-gradient(45deg, #0891b2, #67e8f9); }
+
+        /* Message box */
+        .message-box { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 12px; z-index: 3001; backdrop-filter: blur(10px); border: 1px solid var(--glass-border); transform: translateX(120%); opacity: 0; display: none; }
         .message-box.show { transform: translateX(0); opacity: 1; display: flex; }
-        .message-box.info { background-color: #3b82f6; color: white; }
-        .message-box.success { background-color: #16a34a; color: white; }
-        .message-box.error { background-color: #dc2626; color: white; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
+        .modal-content { background: var(--bg-primary); border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 20px 60px var(--shadow); animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes modalSlideIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        /* Loading */
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Progress */
+        .progress-bar { width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 4px; transition: width 0.3s ease; }
+
+        /* Status chips */
+        .status-available { background: linear-gradient(135deg, #10b981, #34d399); color: white; }
+        .status-in-use { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white; }
+        .status-maintenance { background: linear-gradient(135deg, #ef4444, #f87171); color: white; }
+
+        /* Route cards */
+        .route-option { background: var(--bg-primary); border: 2px solid var(--border); border-radius: 16px; padding: 20px; cursor: pointer; position: relative; overflow: hidden; }
+        .route-option::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, var(--glass-bg), transparent); transition: left 0.5s; }
+        .route-option:hover::before { left: 100%; }
+        .route-option:hover { transform: translateY(-4px); box-shadow: 0 8px 32px var(--shadow); border-color: var(--primary); }
+        .route-option.selected-route { border-color: var(--primary); background: var(--glass-bg); box-shadow: 0 8px 32px var(--primary); }
+
+        /* FAB */
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; cursor: pointer; box-shadow: 0 8px 24px var(--shadow); z-index: 1000; }
+        .fab:hover { transform: scale(1.1) rotate(180deg); box-shadow: 0 12px 36px var(--shadow); }
+
+        /* Vehicle cards */
+        .vehicle-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 16px; padding: 16px; position: relative; overflow: hidden; }
+        .vehicle-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
+        .vehicle-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px var(--shadow); border-color: var(--primary); }
+
+        /* Vendor tabs */
+        .vendor-tab { position: relative; padding: 12px 20px; border-radius: 8px 8px 0 0; }
+        .vendor-tab.active { background: var(--bg-primary); color: var(--primary); border-bottom: 3px solid var(--primary); }
+
+        /* Map container */
+        .map-container { border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px var(--shadow); border: 1px solid var(--border); }
+
+        /* Metrics */
+        .metric-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; position: relative; overflow: hidden; }
+        .metric-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--primary), var(--secondary)); opacity: 0.05; }
+        .metric-value { position: relative; font-size: 2.5rem; font-weight: 800; background: linear-gradient(45deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        /* Logo */
+        .logo-enhanced { background: linear-gradient(45deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; position: relative; }
+        .logo-enhanced::after { content: '⚡'; position: absolute; right: -30px; top: 50%; transform: translateY(-50%); animation: logoSpark 2s ease-in-out infinite; }
+        @keyframes logoSpark { 0%, 100% { opacity: 0.5; transform: translateY(-50%) scale(1); } 50% { opacity: 1; transform: translateY(-50%) scale(1.2); } }
+
+        /* Range slider */
+        .range-slider { -webkit-appearance: none; appearance: none; height: 8px; background: var(--bg-tertiary); border-radius: 4px; outline: none; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: linear-gradient(45deg, var(--primary), var(--secondary)); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px var(--shadow); }
+        .range-slider::-moz-range-thumb { width: 20px; height: 20px; background: linear-gradient(45deg, var(--primary), var(--secondary)); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 2px 8px var(--shadow); }
+
+        /* Toggle */
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--bg-tertiary); border-radius: 30px; transition: 0.3s; border: 2px solid var(--border); }
+        .toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 2px; bottom: 2px; background: var(--bg-primary); border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 8px var(--shadow); }
+        input:checked + .toggle-slider { background: linear-gradient(45deg, var(--primary), var(--accent)); border-color: var(--primary); }
+        input:checked + .toggle-slider:before { transform: translateX(28px); background: white; }
+
+        /* Grid */
+        .responsive-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+        @media (max-width: 640px) { .responsive-grid { grid-template-columns: 1fr; gap: 16px; } }
+
+        /* Scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 3000;
+        .custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-tertiary); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
-        .vendor-tab.active {
-            border-color: #6366f1; /* indigo-500 */
-            color: #4f46e5; /* indigo-600 */
-            font-weight: 600;
+
+        /* Print */
+        @media print {
+            .no-print { display: none !important; }
+            .glass, .glass-card { background: white !important; box-shadow: none !important; border: 1px solid #ccc !important; }
         }
-        .sort-btn.active-sort {
-            background-color: #4f46e5; /* indigo-600 */
-            color: white;
+
+        /* High contrast */
+        @media (prefers-contrast: high) {
+            .glass, .glass-card { border-width: 2px; border-color: var(--text-primary); }
+            .btn-modern { border: 2px solid var(--text-primary); }
         }
+
         /* Ensure map container has a defined height */
         #live-navigation {
-            height: calc(100vh - 150px); /* Full viewport height minus header/padding */
+            height: calc(100vh - 150px);
         }
-        /* Style for alternative route options */
-        .route-option {
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
+
+         /* Toggle Switch styles */
+         input:checked ~ .dot {
+            transform: translateX(100%);
+            background-color: var(--primary);
         }
-        .route-option.selected-route {
-            border-color: #4f46e5; /* indigo-600 */
-            background-color: #e0e7ff; /* indigo-100 */
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        input:checked ~ .block {
+            background-color: var(--accent);
         }
     </style>
 </head>
 
-<body class="bg-gray-100 font-sans min-h-screen flex flex-col">
+<body class="animated-bg font-sans min-h-screen flex flex-col" data-theme="light" style="position: relative;">
+    <!-- Theme Control Panel (collapsible) -->
+    <div class="fixed bottom-4 left-4 z-50 no-print">
+        <div class="glass rounded-xl overflow-hidden">
+            <button id="theme-toggle" class="btn-modern !rounded-none w-full" style="border-radius: 0;">Theme</button>
+            <div id="theme-panel" class="p-3 hidden">
+                <div class="theme-selector">
+                    <div class="theme-option theme-light active" data-theme="light"></div>
+                    <div class="theme-option theme-dark" data-theme="dark"></div>
+                    <div class="theme-option theme-cyberpunk" data-theme="cyberpunk"></div>
+                    <div class="theme-option theme-ocean" data-theme="ocean"></div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Message Box for feedback -->
-    <div id="message-box" class="message-box">
+    <div id="message-box" class="message-box glass text-white">
         <span id="message-text"></span>
         <button onclick="hideMessage()" class="text-white text-xl ml-4">&times;</button>
     </div>
@@ -99,80 +338,208 @@
         </div>
     </div>
 
+    <!-- Suggestion Modal -->
+    <div id="suggestion-modal" class="modal-overlay hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg relative">
+            <button onclick="closeSuggestionModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            <h2 id="suggestion-title" class="text-2xl font-bold mb-4 text-gray-800">Time for a break?</h2>
+            <p id="suggestion-subtitle" class="text-gray-600 mb-4">Here are some places nearby:</p>
+            <div id="suggestion-list" class="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+                <!-- Suggestions will be injected here -->
+            </div>
+        </div>
+    </div>
+
 
     <!-- Authentication Section -->
-    <div id="auth-section" class="flex items-center justify-center min-h-screen p-4">
+    <div id="auth-section" class="flex items-center justify-center min-h-screen p-4" style="position: relative; z-index: 1;">
         <!-- Forms are rendered here by JS -->
     </div>
 
     <!-- Main Application -->
-    <div id="app-content" class="flex flex-col flex-grow" style="display: none;">
-        <header class="bg-white bg-opacity-10 backdrop-blur-lg p-4 sticky top-0 z-10 shadow-lg">
-            <!-- Navigation Bar -->
+    <div id="app-content" class="flex flex-col flex-grow" style="display: none; position: relative; z-index: 1;">
+        <header class="nav-glass p-4 sticky top-0 z-10">
+            <!-- Hamburger Menu Navigation -->
             <nav class="container mx-auto flex justify-between items-center">
-                <div class="logo text-2xl font-bold text-white">⚡ ChargeFranchise</div>
-                <ul class="nav-links hidden md:flex items-center gap-4">
-                    <!-- User Links -->
-                    <li class="user-only-nav"><a href="#" class="text-white font-medium p-2" onclick="showSection('home')">Home</a></li>
-                    <li class="user-only-nav"><a href="#" class="text-white font-medium p-2" onclick="showSection('find-chargers')">AI Route Planner</a></li>
-                    <li class="user-only-nav"><a href="#" class="text-white font-medium p-2" onclick="showSection('chargers-near-me')">Chargers Near Me</a></li>
-                    <li class="user-only-nav"><a href="#" class="text-white font-medium p-2" onclick="showSection('vehicle-reg')">My Vehicles</a></li>
-                    <li class="user-only-nav"><a href="#" class="text-white font-medium p-2" onclick="showSection('rent-charger')">Rent My Charger</a></li>
-                    <li class="user-only-nav"><a href="#" class="text-white font-medium p-2" onclick="showSection('become-vendor')">Become a Partner</a></li>
+                <div class="logo-enhanced text-2xl font-extrabold tracking-tight" style="color: var(--text-primary);">ChargeFranchise</div>
+                
+                <!-- Right Side Controls -->
+                <div class="flex items-center gap-3">
+                    <!-- Connection Status -->
+                    <div id="connection-status" class="flex items-center gap-1" title="Connection Status">
+                        <div id="connection-indicator" class="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span id="connection-text" class="text-xs" style="color: var(--text-secondary);">Online</span>
+                    </div>
                     
-                    <!-- Vendor Links -->
-                    <li class="vendor-only-nav" style="display: none;"><a href="#" class="text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('performance-overview');">Performance Overview</a></li>
-                    <li class="vendor-only-nav" style="display: none;"><a href="#" class="text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('manage-chargers');">Manage Chargers</a></li>
-                    <li class="vendor-only-nav" style="display: none;"><a href="#" class="text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('my-vmap');">My VMAP</a></li>
-                    <li class="vendor-only-nav" style="display: none;"><a href="#" class="text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('vendor-settings');">Settings</a></li>
-
-                    <li id="user-info-container" class="flex items-center gap-4">
-                        <span id="user-info" class="text-white"></span>
-                        <button onclick="logout()" class="bg-red-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-red-600">Logout</button>
-                    </li>
-                </ul>
-                <button class="text-white text-2xl md:hidden" onclick="toggleMobileMenu()">☰</button>
+                    <!-- User Info -->
+                    <span id="user-info" style="color: var(--text-primary); font-weight: 500;"></span>
+                    
+                    <!-- Logout Button -->
+                    <button onclick="logout()" class="py-2 px-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 text-sm" style="background: #ef4444; color: white;" title="Logout">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Hamburger Menu Button -->
+                    <button id="hamburger-btn" class="text-2xl hover:opacity-80 transition-all duration-300" style="color: var(--text-primary);" onclick="toggleHamburgerMenu()">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
             </nav>
-            <!-- Mobile Menu -->
-            <ul id="mobile-menu" class="hidden md:hidden mt-4 space-y-2">
+            
+            <!-- Collapsible Hamburger Menu -->
+            <div id="hamburger-menu" class="hidden mt-4 glass p-4 rounded-xl" style="background: var(--bg-secondary); border: 1px solid var(--border);">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  <!-- User Links -->
-                 <li class="user-only-nav"><a href="#" class="block text-white font-medium p-2" onclick="showSection('home'); toggleMobileMenu();">Home</a></li>
-                 <li class="user-only-nav"><a href="#" class="block text-white font-medium p-2" onclick="showSection('find-chargers'); toggleMobileMenu();">AI Route Planner</a></li>
-                 <li class="user-only-nav"><a href="#" class="block text-white font-medium p-2" onclick="showSection('chargers-near-me'); toggleMobileMenu();">Chargers Near Me</a></li>
-                 <li class="user-only-nav"><a href="#" class="block text-white font-medium p-2" onclick="showSection('vehicle-reg'); toggleMobileMenu();">My Vehicles</a></li>
-                 <li class="user-only-nav"><a href="#" class="block text-white font-medium p-2" onclick="showSection('rent-charger'); toggleMobileMenu();">Rent My Charger</a></li>
-                 <li class="user-only-nav"><a href="#" class="block text-white font-medium p-2" onclick="showSection('become-vendor'); toggleMobileMenu();">Become a Partner</a></li>
+                    <div class="user-only-nav">
+                        <a href="#home" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('home'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                                </svg>
+                                Home
+                            </div>
+                        </a>
+                    </div>
+                    <div class="user-only-nav">
+                        <a href="#find-chargers" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('find-chargers'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                                </svg>
+                                AI Route Planner
+                            </div>
+                        </a>
+                    </div>
+                    <div class="user-only-nav">
+                        <a href="#chargers-near-me" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('chargers-near-me'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                Chargers Near Me
+                            </div>
+                        </a>
+                    </div>
+                    <div class="user-only-nav">
+                        <a href="#vehicle-reg" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('vehicle-reg'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+                                </svg>
+                                My Vehicles
+                            </div>
+                        </a>
+                    </div>
+                    <div class="user-only-nav">
+                        <a href="#trip-history" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('trip-history'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Trip History
+                            </div>
+                        </a>
+                    </div>
+                    <div class="user-only-nav">
+                        <a href="#rent-charger" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('rent-charger'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Rent My Charger
+                            </div>
+                        </a>
+                    </div>
+                    <div class="user-only-nav">
+                        <a href="#become-vendor" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('become-vendor'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                </svg>
+                                Become a Partner
+                            </div>
+                        </a>
+                    </div>
 
                  <!-- Vendor Links -->
-                 <li class="vendor-only-nav" style="display: none;"><a href="#" class="block text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('performance-overview'); toggleMobileMenu();">Performance Overview</a></li>
-                 <li class="vendor-only-nav" style="display: none;"><a href="#" class="block text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('manage-chargers'); toggleMobileMenu();">Manage Chargers</a></li>
-                 <li class="vendor-only-nav" style="display: none;"><a href="#" class="block text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('my-vmap'); toggleMobileMenu();">My VMAP</a></li>
-                 <li class="vendor-only-nav" style="display: none;"><a href="#" class="block text-white font-medium p-2" onclick="showSection('dashboard'); showVendorTab('vendor-settings'); toggleMobileMenu();">Settings</a></li>
-
-                 <li class="pt-2"><button onclick="logout()" class="w-full bg-red-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-red-600">Logout</button></li>
-            </ul>
+                    <div class="vendor-only-nav" style="display: none;">
+                        <a href="#dashboard-performance" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('dashboard'); showVendorTab('performance-overview'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                Performance Overview
+                            </div>
+                        </a>
+                    </div>
+                    <div class="vendor-only-nav" style="display: none;">
+                        <a href="#dashboard-manage" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('dashboard'); showVendorTab('manage-chargers'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                Manage Chargers
+                            </div>
+                        </a>
+                    </div>
+                    <div class="vendor-only-nav" style="display: none;">
+                        <a href="#dashboard-vmap" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('dashboard'); showVendorTab('my-vmap'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                                </svg>
+                                My VMAP
+                            </div>
+                        </a>
+                    </div>
+                    <div class="vendor-only-nav" style="display: none;">
+                        <a href="#dashboard-settings" class="block font-medium p-3 rounded-lg transition-all duration-300 hover:scale-105" style="color: var(--text-primary); background: var(--bg-tertiary);" onmouseover="this.style.background='var(--primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)';" onclick="showSection('dashboard'); showVendorTab('vendor-settings'); toggleHamburgerMenu();">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                Settings
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </header>
 
-        <main class="main-content container mx-auto p-4 flex-grow bg-white rounded-xl shadow-lg mt-4">
+        <main class="main-content container mx-auto p-4 flex-grow glass-card mt-4">
             <!-- Home Section -->
             <section id="home" class="section active">
-                <div class="bg-indigo-600 text-white p-10 rounded-xl text-center shadow-lg">
-                    <h1 class="text-4xl font-bold mb-4">The Future of EV Charging is Collaborative</h1>
-                    <p class="text-xl opacity-90">Plan smart routes, manage your vehicles, and join our network of chargers.</p>
+                <div class="glass p-10 rounded-xl text-center">
+                    <h1 class="text-4xl font-extrabold mb-4" style="color: var(--text-primary);">The Future of EV Charging is Collaborative</h1>
+                    <p class="text-xl" style="color: var(--text-secondary);">Plan smart routes, manage your vehicles, and join our network of chargers.</p>
                 </div>
-                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 transition-all duration-300 hover:shadow-xl">
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-2">My Vehicles</h2>
-                        <button onclick="showSection('vehicle-reg')" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Manage Vehicles</button>
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+                    <div class="feature-card" id="vehicles-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
+                        <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">My Vehicles</h2>
+                        <p class="mb-4" style="color: var(--text-secondary);">Register and manage your electric vehicles for smart route planning.</p>
+                        <button id="vehicle-action-btn" onclick="showSection('vehicle-reg')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--primary); color: white;">Add Vehicle</button>
                     </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 transition-all duration-300 hover:shadow-xl">
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-2">AI Route Planner</h2>
-                        <button onclick="showSection('find-chargers')" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700">Plan Trip</button>
+                    <div class="feature-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
+                        <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">AI Route Planner</h2>
+                        <p class="mb-4" style="color: var(--text-secondary);">Get intelligent route planning with optimal charging stops for your EV journey.</p>
+                        <button onclick="showSection('find-chargers')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--primary); color: white;">Plan Trip</button>
                     </div>
-                    <div id="franchise-card" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 transition-all duration-300 hover:shadow-xl" style="display: none;">
-                        <h2 class="text-2xl font-semibold text-gray-800 mb-2">Become a Partner</h2>
-                        <p class="text-gray-600 mb-4">Earn by setting up your own charging station franchise.</p>
-                        <button onclick="showSection('become-vendor')" class="w-full bg-yellow-500 text-white py-3 rounded-lg font-semibold hover:bg-yellow-600">Apply Now</button>
+                    <div class="feature-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
+                        <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">Trip History</h2>
+                        <p class="mb-4" style="color: var(--text-secondary);">View your completed trips and statistics.</p>
+                        <button onclick="showSection('trip-history')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--secondary); color: white;">View History</button>
+                    </div>
+                    <div class="feature-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
+                        <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">Become a Partner</h2>
+                        <p class="mb-4" style="color: var(--text-secondary);">Earn by setting up your own charging station franchise.</p>
+                        <button onclick="showSection('become-vendor')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--accent); color: white;">Apply Now</button>
                     </div>
                 </div>
             </section>
@@ -180,16 +547,16 @@
             <!-- AI Route Planner Section -->
             <section id="find-chargers" class="section">
                  <div class="p-6">
-                    <h2 class="text-3xl font-bold mb-4 text-gray-800">AI Route Planner</h2>
+                    <h2 class="text-3xl font-bold mb-4" style="color: var(--text-primary);">AI Route Planner</h2>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-1 p-6 bg-gray-50 rounded-lg shadow-inner space-y-4" id="route-form">
-                            <h3 class="text-xl font-semibold text-gray-700">Plan your journey</h3>
+                        <div class="lg:col-span-1 glass-card p-6 space-y-4" id="route-form">
+                            <h3 class="text-xl font-semibold" style="color: var(--text-primary);">Plan your journey</h3>
                             <div>
-                                <label class="block text-sm font-medium text-gray-600">Start Location</label>
+                                <label class="block text-sm font-medium" style="color: var(--text-secondary);">Start Location</label>
                                 <div class="flex items-center gap-2">
-                                     <input type="text" id="route-start" placeholder="e.g. Mumbai" class="w-full p-3 border rounded-lg form-field">
-                                     <button onclick="locateMe('route-start')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                     <input type="text" id="route-start" placeholder="e.g. Thiruvananthapuram" class="w-full p-3 border rounded-lg form-field">
+                                     <button onclick="locateMe('route-start')" class="p-2 rounded-lg transition-colors" style="background: var(--bg-tertiary);">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);">
                                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                                             <circle cx="12" cy="10" r="3" />
                                         </svg>
@@ -200,44 +567,56 @@
                             <!-- NEW: Waypoints UI -->
                             <div id="waypoints-container" class="space-y-2"></div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-600">Add Waypoint (for long trips)</label>
+                                <label class="block text-sm font-medium" style="color: var(--text-secondary);">Add Waypoint (for long trips)</label>
                                 <div class="flex items-center gap-2">
-                                    <input type="text" id="waypoint-input" placeholder="e.g. Delhi" class="w-full p-3 border rounded-lg">
-                                    <button onclick="addWaypoint()" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition-colors font-bold text-lg">+</button>
+                                    <input type="text" id="waypoint-input" placeholder="e.g. Delhi" class="w-full p-3 border rounded-lg form-input">
+                                    <button onclick="addWaypoint()" class="p-2 rounded-lg transition-colors font-bold text-lg" style="background: var(--bg-tertiary);">+</button>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-600">Destination</label>
-                                <input type="text" id="route-end" placeholder="e.g. Pune" class="w-full p-3 border rounded-lg form-field">
+                                <label class="block text-sm font-medium" style="color: var(--text-secondary);">Destination</label>
+                                <input type="text" id="route-end" placeholder="e.g. Pune" class="w-full p-3 border rounded-lg form-input">
                             </div>
                              <div>
-                                <label class="block text-sm font-medium text-gray-600">Select Your Vehicle</label>
+                                <label class="block text-sm font-medium" style="color: var(--text-secondary);">Select Your Vehicle</label>
                                 <select id="vehicle-select" class="w-full p-3 border rounded-lg form-field"></select>
                             </div>
                             <div>
-                                <label for="start-charge" class="block text-sm font-medium text-gray-600">Starting Charge: <span id="start-charge-value">80</span>%</label>
+                                <label for="start-charge" class="block text-sm font-medium" style="color: var(--text-secondary);">Starting Charge: <span id="start-charge-value">80</span>%</label>
                                 <input type="range" id="start-charge" min="0" max="100" value="80" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                             </div>
                             <div>
-                                <label for="end-charge" class="block text-sm font-medium text-gray-600">Desired Charge at Arrival: <span id="end-charge-value">20</span>%</label>
+                                <label for="end-charge" class="block text-sm font-medium" style="color: var(--text-secondary);">Desired Charge at Arrival: <span id="end-charge-value">20</span>%</label>
                                 <input type="range" id="end-charge" min="0" max="100" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                             </div>
                             <div>
-                                <label for="search-radius" class="block text-sm font-medium text-gray-600">Charger Search Radius: <span id="search-radius-value">10</span> km</label>
+                                <label for="search-radius" class="block text-sm font-medium" style="color: var(--text-secondary);">Charger Search Radius: <span id="search-radius-value">10</span> km</label>
                                 <input type="range" id="search-radius" min="5" max="50" value="10" step="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                             </div>
                             <div>
-                                <label for="nearby-radius" class="block text-sm font-medium text-gray-600">Nearby Places Radius: <span id="nearby-radius-value">1</span> km</label>
-                                <input type="range" id="nearby-radius" min="1" max="5" value="1" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <label for="nearby-radius" class="block text-sm font-medium" style="color: var(--text-secondary);">Nearby Places Radius: <span id="nearby-radius-value">5</span> km</label>
+                                <input type="range" id="nearby-radius" min="1" max="20" value="5" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                             <div class="flex items-center justify-between">
+                                <label for="toggle-suggestions" class="flex items-center cursor-pointer">
+                                    <span class="text-sm font-medium text-gray-600">Meal & Stay Suggestions</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="checkbox" id="toggle-suggestions" class="sr-only" checked>
+                                    <div class="block bg-gray-300 w-10 h-6 rounded-full"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                                </div>
                             </div>
                             <button id="find-route-btn" onclick="findAlternativeRoutes()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Find Available Routes</button>
                         </div>
                         <div class="lg:col-span-2 space-y-4">
-                            <div id="route-details" class="p-4 bg-blue-50 rounded-lg hidden"></div>
-                            <div id="map" class="w-full h-[500px] rounded-lg shadow-md"></div>
+                            <div id="route-details" class="glass-card p-4 hidden"></div>
+                            <div class="glass-card p-2">
+                                <div id="map" class="w-full h-[500px] rounded-lg"></div>
+                            </div>
                              <!-- Nearby Places will be shown here after selecting a charger -->
-                            <div id="nearby-places" class="p-4 bg-gray-50 rounded-lg hidden"></div>
+                            <div id="nearby-places" class="glass-card p-4 hidden"></div>
                         </div>
                     </div>
                 </div>
@@ -246,9 +625,16 @@
             <!-- Chargers Near Me Section -->
             <section id="chargers-near-me" class="section">
                 <div class="p-6">
-                    <h2 class="text-3xl font-bold mb-4 text-gray-800">EV Chargers Near Me</h2>
+                    <h2 class="text-3xl font-bold mb-4" style="color: var(--text-primary);">EV Chargers Near Me</h2>
                     <div class="flex items-center justify-between mb-4">
-                        <p class="text-gray-600">Find the closest available chargers around your location.</p>
+                        <div>
+                            <p class="text-gray-600 mb-2">Find the closest available chargers around your location.</p>
+                            <div class="flex items-center gap-4">
+                                <label for="near-me-radius" class="text-sm font-medium" style="color: var(--text-secondary);">Search Radius: <span id="near-me-radius-value">10</span> km</label>
+                                <input type="range" id="near-me-radius" min="5" max="50" value="10" step="5" class="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
                         <button onclick="locateMe('near-me-map')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -256,8 +642,14 @@
                             </svg>
                             Locate Me
                         </button>
+                            <button onclick="testChargerLoading()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                                Test Loading
+                        </button>
+                        </div>
                     </div>
-                    <div id="chargers-near-me-map" class="w-full h-[600px] rounded-lg shadow-md"></div>
+                    <div class="glass-card p-2">
+                        <div id="chargers-near-me-map" class="w-full h-[600px] rounded-lg"></div>
+                    </div>
                 </div>
             </section>
 
@@ -290,10 +682,10 @@
             <!-- My Vehicles Section -->
             <section id="vehicle-reg" class="section">
                  <div class="p-6">
-                    <h2 class="text-3xl font-bold mb-4 text-gray-800">My Vehicles</h2>
+                    <h2 class="text-3xl font-bold mb-4" style="color: var(--text-primary);">My Vehicles</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner" id="vehicle-form">
-                            <h3 class="text-xl font-semibold mb-3 text-gray-700">Add a New Vehicle</h3>
+                        <div class="glass-card p-6" id="vehicle-form">
+                            <h3 class="text-xl font-semibold mb-3" style="color: var(--text-primary);">Add a New Vehicle</h3>
                             <div class="space-y-4">
                                 <input type="text" id="reg-no" placeholder="Registration No. (e.g. MH01AB1234)" class="w-full p-3 border rounded-lg form-field">
                                 <input type="text" id="vehicle-make" placeholder="Make (e.g. Tesla)" class="w-full p-3 border rounded-lg form-field">
@@ -311,9 +703,51 @@
                                 <button id="submit-vehicle-btn" onclick="submitVehicle()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Register Vehicle</button>
                             </div>
                         </div>
-                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner custom-scrollbar overflow-y-auto max-h-96">
-                            <h3 class="text-xl font-semibold mb-3 text-gray-700">My Registered Vehicles</h3>
+                        <div class="glass-card p-6 custom-scrollbar overflow-y-auto max-h-96">
+                            <h3 class="text-xl font-semibold mb-3" style="color: var(--text-primary);">My Registered Vehicles</h3>
                             <div id="my-vehicles-list" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trip History Section -->
+            <section id="trip-history" class="section">
+                <div class="p-6">
+                    <h2 class="text-3xl font-bold mb-4" style="color: var(--text-primary);">Trip History</h2>
+                    <div class="glass-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-semibold" style="color: var(--text-primary);">Your Completed Trips</h3>
+                            <div class="flex gap-2">
+                            <button onclick="exportTripHistory()" class="btn-modern">Export History</button>
+                            <button onclick="clearTripHistory()" class="btn-modern" style="background: #ef4444; color: white;">Clear History</button>
+                            <button onclick="cleanOldData()" class="btn-modern" style="background: #f59e0b; color: white;">Clean Old Data</button>
+                        </div>
+                        </div>
+                        <div id="trip-history-list" class="space-y-4 custom-scrollbar overflow-y-auto max-h-96">
+                            <p style="color: var(--text-secondary);">No trips completed yet. Start planning your first route!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 mt-6">
+                        <h3 class="text-xl font-semibold mb-4" style="color: var(--text-primary);">Trip Statistics</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="metric-card">
+                                <div class="text-sm" style="color: var(--text-secondary);">Total Trips</div>
+                                <div id="total-trips" class="metric-value">0</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="text-sm" style="color: var(--text-secondary);">Distance Traveled</div>
+                                <div id="total-distance" class="metric-value">0 km</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="text-sm" style="color: var(--text-secondary);">Energy Used</div>
+                                <div id="total-energy" class="metric-value">0 kWh</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="text-sm" style="color: var(--text-secondary);">CO₂ Saved</div>
+                                <div id="co2-saved" class="metric-value">0 kg</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -322,7 +756,7 @@
             <!-- Rent My Charger Section -->
             <section id="rent-charger" class="section">
                 <div class="p-6">
-                    <h2 class="text-3xl font-bold mb-4 text-gray-800">Rent Your Home Charger</h2>
+                    <h2 class="text-3xl font-bold mb-4" style="color: var(--text-primary);">Rent Your Home Charger</h2>
                     <p class="mb-6 text-gray-600">Earn extra income by listing your personal EV charger for others to use when you're not.</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="p-6 bg-gray-50 rounded-lg shadow-inner" id="home-charger-form">
@@ -335,8 +769,8 @@
                                 <button id="list-charger-btn" onclick="listHomeCharger()" class="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700">List My Charger</button>
                             </div>
                         </div>
-                        <div class="p-6 bg-gray-50 rounded-lg shadow-inner custom-scrollbar overflow-y-auto max-h-96">
-                            <h3 class="text-xl font-semibold mb-3 text-gray-700">My Listed Chargers</h3>
+                        <div class="glass-card p-6 custom-scrollbar overflow-y-auto max-h-96">
+                            <h3 class="text-xl font-semibold mb-3" style="color: var(--text-primary);">My Listed Chargers</h3>
                             <div id="user-chargers-list" class="space-y-3"></div>
                         </div>
                     </div>
@@ -346,7 +780,7 @@
              <!-- Become a Vendor Section -->
             <section id="become-vendor" class="section">
                  <div class="p-6 max-w-2xl mx-auto">
-                    <h2 class="text-3xl font-bold mb-4 text-gray-800">Become a Vendor Partner</h2>
+                    <h2 class="text-3xl font-bold mb-4" style="color: var(--text-primary);">Become a Vendor Partner</h2>
                     <div id="vendor-application-status"></div>
                 </div>
             </section>
@@ -416,11 +850,11 @@
 
                     <div id="my-vmap" class="vendor-tab-content">
                          <h3 class="text-2xl font-bold mb-4 text-gray-800">My Charger Locations</h3>
-                        <div id="vendor-map" class="w-full h-[500px] rounded-lg shadow-md"></div>
+                        <div class="glass-card p-2"><div id="vendor-map" class="w-full h-[500px] rounded-lg"></div></div>
                     </div>
 
                     <div id="vendor-settings" class="vendor-tab-content">
-                        <h3 class="text-2xl font-bold mb-4 text-gray-800">Vendor Settings</h3>
+                        <h3 class="text-2xl font-bold mb-4" style="color: var(--text-primary);">Vendor Settings</h3>
                         <div class="p-6 bg-gray-50 rounded-lg shadow-inner max-w-md mx-auto" id="set-pin-form">
                             <h3 class="text-xl font-semibold mb-3 text-gray-700">Set Your Custom PIN</h3>
                             <p class="text-gray-600 mb-4">This PIN will be used for all future logins.</p>
@@ -450,6 +884,9 @@
                 </div>
             </section>
         </main>
+        <footer class="mt-auto p-6 text-center" style="color: var(--text-secondary);">
+            &copy; <span id="year"></span> ChargeFranchise · Built for EV entrepreneurs
+        </footer>
     </div>
     
     <!-- Main Application Script -->
@@ -464,6 +901,113 @@
             messagingSenderId: "77947942873",
             appId: "1:77947942873:web:b8366adbb41f39b8a8cbc8"
         };
+
+        // Network status tracking
+        let isOnline = navigator.onLine;
+        let networkErrors = [];
+
+        // Update connection status indicator
+        const updateConnectionStatus = (online) => {
+            const indicator = document.getElementById('connection-indicator');
+            const text = document.getElementById('connection-text');
+            
+            if (indicator && text) {
+                if (online) {
+                    indicator.className = 'w-2 h-2 rounded-full bg-green-500';
+                    text.textContent = 'Online';
+                    text.style.color = 'var(--text-secondary)';
+                } else {
+                    indicator.className = 'w-2 h-2 rounded-full bg-red-500';
+                    text.textContent = 'Offline';
+                    text.style.color = '#ef4444';
+                }
+            }
+        };
+
+        // Monitor network status
+        window.addEventListener('online', () => {
+            isOnline = true;
+            updateConnectionStatus(true);
+            showMessage('Connection restored!', 3000, 'success');
+            hideNetworkError();
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            updateConnectionStatus(false);
+            showMessage('You are offline. Some features may not work.', 5000, 'warning');
+            showNetworkError();
+        });
+
+        // Check network connectivity
+        const checkNetworkStatus = async () => {
+            try {
+                const response = await fetch('https://www.google.com/favicon.ico', { 
+                    method: 'HEAD', 
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                });
+                isOnline = true;
+                hideNetworkError();
+                return true;
+            } catch (error) {
+                isOnline = false;
+                showNetworkError();
+                return false;
+            }
+        };
+
+        // Show network error indicator
+        const showNetworkError = () => {
+            let errorDiv = document.getElementById('network-error');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.id = 'network-error';
+                errorDiv.className = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg';
+                errorDiv.style.cssText = `
+                    background: #fef3c7;
+                    border: 1px solid #f59e0b;
+                    color: #92400e;
+                    max-width: 300px;
+                `;
+                errorDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                        <div>
+                            <div class="font-semibold">Connection Issues</div>
+                            <div class="text-sm">Some features may not work properly</div>
+                        </div>
+                        <button onclick="hideNetworkError()" class="ml-2 text-gray-500 hover:text-gray-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(errorDiv);
+            }
+        };
+
+        // Hide network error indicator
+        const hideNetworkError = () => {
+            const errorDiv = document.getElementById('network-error');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+        };
+
+        // Restore saved theme on load
+        (function(){
+            try {
+                const saved = localStorage.getItem('cf-theme') || 'light';
+                document.body.setAttribute('data-theme', saved);
+                document.querySelectorAll('.theme-option').forEach(el=>{
+                    el.classList.toggle('active', el.getAttribute('data-theme') === saved);
+                });
+            } catch(e) {}
+        })();
         // Use a placeholder for the Open Charge Map API key, which can be updated in the settings
         let openChargeMapApiKey = "6aa27df2-0e7d-4ce3-9787-5e869d304fd7"; 
 
@@ -472,21 +1016,151 @@
         import { 
             getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
             signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup,
-            signOut, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider
+            signOut, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
+            setPersistence, browserLocalPersistence
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, getDoc, addDoc, collection,
-            query, onSnapshot, serverTimestamp, deleteDoc, GeoPoint, where, updateDoc, getDocs
+            query, onSnapshot, serverTimestamp, deleteDoc, GeoPoint, where, updateDoc, getDocs,
+            initializeFirestore, persistentLocalCache, persistentMultipleTabManager, writeBatch
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { 
             getStorage, ref, uploadBytes, getDownloadURL 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // Initialize Firebase with error handling
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = initializeFirestore(app, {
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        });
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            showMessage('Failed to initialize database. Some features may not work.', 5000, 'error');
+            // Create mock objects to prevent crashes
+            auth = { currentUser: null };
+            db = null;
+        }
         const storage = getStorage(app);
+
+        // Enable Persistence
+        (async () => {
+            try {
+                await setPersistence(auth, browserLocalPersistence);
+                console.log("Firebase persistence enabled (new cache API).");
+            } catch (error) {
+                console.error("Firebase persistence error:", error);
+            }
+        })();
+
+        // Collapsible theme panel behavior and click handlers
+        (function(){
+            const panel = document.getElementById('theme-panel');
+            const toggleBtn = document.getElementById('theme-toggle');
+            if (toggleBtn && panel) {
+                toggleBtn.addEventListener('click', () => panel.classList.toggle('hidden'));
+            }
+            document.querySelectorAll('.theme-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const theme = opt.getAttribute('data-theme');
+                    document.body.setAttribute('data-theme', theme);
+                    localStorage.setItem('cf-theme', theme);
+                    document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
+                    opt.classList.add('active');
+                    
+                    // Update map themes when app theme changes
+                    updateMapThemes();
+                });
+            });
+        })();
+
+        // Map Themes
+        const getMapTheme = (appTheme) => {
+            const themes = {
+                light: [
+                    { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#f5f5f5" }] },
+                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#c9c9c9" }] },
+                    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
+                    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+                    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+                    { featureType: "poi", elementType: "geometry", stylers: [{ color: "#eeeeee" }] },
+                    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+                    { featureType: "transit", elementType: "geometry", stylers: [{ color: "#e5e5e5" }] },
+                    { featureType: "transit", elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
+                    { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#e5e5e5" }] },
+                    { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#bdbdbd" }] }
+                ],
+                dark: [
+                    { elementType: "geometry", stylers: [{ color: "#212121" }] },
+                    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
+                    { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#757575" }] },
+                    { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
+                    { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+                    { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#bdbdbd" }] },
+                    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+                    { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#181818" }] },
+                    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+                    { featureType: "poi.park", elementType: "labels.text.stroke", stylers: [{ color: "#1b1b1b" }] },
+                    { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] },
+                    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
+                    { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#373737" }] },
+                    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3c3c3c" }] },
+                    { featureType: "road.highway.controlled_access", elementType: "geometry", stylers: [{ color: "#4e4e4e" }] },
+                    { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+                    { featureType: "transit", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
+                    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] }
+                ],
+                cyberpunk: [
+                    { elementType: "geometry", stylers: [{ color: "#0a0a0a" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#ff0080" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a0a" }] },
+                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#001122" }] },
+                    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#00ffff" }] },
+                    { featureType: "road", elementType: "geometry", stylers: [{ color: "#1a1a1a" }] },
+                    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#ff0080" }] },
+                    { featureType: "poi", elementType: "geometry", stylers: [{ color: "#0f0f0f" }] },
+                    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#00ffff" }] },
+                    { featureType: "transit", elementType: "geometry", stylers: [{ color: "#1a1a1a" }] },
+                    { featureType: "transit", elementType: "labels.text.fill", stylers: [{ color: "#ff0080" }] },
+                    { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#1a1a1a" }] },
+                    { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#00ffff" }] }
+                ],
+                ocean: [
+                    { elementType: "geometry", stylers: [{ color: "#0c4a6e" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#0891b2" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#0c4a6e" }] },
+                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#0e7490" }] },
+                    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#67e8f9" }] },
+                    { featureType: "road", elementType: "geometry", stylers: [{ color: "#155e75" }] },
+                    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#0891b2" }] },
+                    { featureType: "poi", elementType: "geometry", stylers: [{ color: "#164e63" }] },
+                    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#67e8f9" }] },
+                    { featureType: "transit", elementType: "geometry", stylers: [{ color: "#155e75" }] },
+                    { featureType: "transit", elementType: "labels.text.fill", stylers: [{ color: "#0891b2" }] },
+                    { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#155e75" }] },
+                    { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#67e8f9" }] }
+                ]
+            };
+            return themes[appTheme] || themes.dark;
+        };
+
+        const updateMapThemes = () => {
+            const currentTheme = document.body.getAttribute('data-theme') || 'light';
+            const mapTheme = getMapTheme(currentTheme);
+            
+            if (mainMap) mainMap.setOptions({ styles: mapTheme });
+            if (nearMeMap) nearMeMap.setOptions({ styles: mapTheme });
+            if (liveNavigationMap) liveNavigationMap.setOptions({ styles: mapTheme });
+            if (vendorMap) vendorMap.setOptions({ styles: mapTheme });
+        };
 
         // Global App State
         let mainMap, nearMeMap, liveNavigationMap, directionsService, chargingChart, geocoder, placesService, vendorMap;
@@ -505,6 +1179,8 @@
         let segmentRenderers = []; // To hold renderers for intermediate planning segments
         let waypoints = []; // To store user-added waypoints
         let isMuted = false; // To control voice navigation
+        let suggestionInterval = null; // To hold the interval for suggestions
+        let lastSuggestionTime = { breakfast: 0, lunch: 0, dinner: 0, lodging: 0 };
         
         let currentRoute = {
             vehicle: null,
@@ -533,13 +1209,19 @@
             const msgText = document.getElementById('message-text');
             if(!msgBox || !msgText) return;
             msgText.textContent = message;
-            msgBox.className = `message-box show ${type}`;
+            msgBox.className = `message-box glass text-white show`;
+            
+            // If duration is 0, return a function to clear the message
+            if (duration === 0) {
+                return () => hideMessage();
+            }
+            
             setTimeout(() => hideMessage(), duration);
         };
 
         const hideMessage = () => {
             const msgBox = document.getElementById('message-box');
-            if(msgBox) msgBox.className = 'message-box';
+            if(msgBox) msgBox.className = 'message-box glass text-white';
         };
 
         const showSection = (sectionId) => {
@@ -547,6 +1229,7 @@
             const sectionElement = document.getElementById(sectionId);
             if (sectionElement) {
                 sectionElement.classList.add('active');
+                window.location.hash = sectionId;
             }
 
             // Trigger map resize for all maps to ensure they render correctly when their section becomes visible
@@ -565,9 +1248,25 @@
                 }
             }, 150);
         };
+        
+        window.onpopstate = function(event) {
+            const sectionId = window.location.hash.replace('#', '');
+            if (sectionId) {
+                showSection(sectionId);
+            } else {
+                showSection('home');
+            }
+        };
 
-        const toggleMobileMenu = () => {
-            document.getElementById('mobile-menu')?.classList.toggle('hidden');
+        const toggleHamburgerMenu = () => {
+            const menu = document.getElementById('hamburger-menu');
+            const btn = document.getElementById('hamburger-btn');
+            if (menu && btn) {
+                menu.classList.toggle('hidden');
+                // Optional: Add rotation animation to hamburger icon
+                btn.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(90deg)';
+                btn.style.transition = 'transform 0.3s ease';
+            }
         };
         
         const renderAuthForms = () => {
@@ -678,6 +1377,10 @@
                 userVehicles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const vehicleSelect = document.getElementById('vehicle-select');
                 const listEl = document.getElementById('my-vehicles-list');
+                
+                // Update home button text based on vehicle count
+                updateVehicleButton(userVehicles.length);
+                
                 if (vehicleSelect) {
                     vehicleSelect.innerHTML = '<option value="">Select a vehicle</option>';
                     userVehicles.forEach(v => {
@@ -688,17 +1391,322 @@
                     });
                 }
                 if (listEl) {
-                    listEl.innerHTML = userVehicles.length === 0 ? `<p class="text-gray-500">No vehicles added yet.</p>` : '';
+                    listEl.innerHTML = userVehicles.length === 0 ? `<p style="color: var(--text-secondary);">No vehicles added yet.</p>` : '';
                     userVehicles.forEach(vehicle => {
                         const item = document.createElement('div');
-                        item.className = 'bg-white p-4 rounded-lg shadow-sm flex justify-between items-center';
-                        item.innerHTML = `<div><p class="font-semibold">${vehicle.make} ${vehicle.model}</p><p class="text-sm text-gray-600">${vehicle.regNo}</p></div>
-                                          <button onclick="deleteVehicle('${vehicle.id}')" class="text-red-500 hover:text-red-700 font-semibold">Delete</button>`;
+                        item.className = 'vehicle-card flex justify-between items-center';
+                        item.innerHTML = `<div><p class="font-semibold" style="color: var(--text-primary);">${vehicle.make} ${vehicle.model}</p><p class="text-sm" style="color: var(--text-secondary);">${vehicle.regNo}</p></div>
+                        <button onclick=\"deleteVehicle('${vehicle.id}')\" class=\"font-semibold\" style=\"color:#ef4444;\">Delete</button>`;
                         listEl.appendChild(item);
                     });
                 }
             });
         };
+
+        const updateVehicleButton = (vehicleCount) => {
+            const btn = document.getElementById('vehicle-action-btn');
+            if (btn) {
+                btn.textContent = vehicleCount > 0 ? 'Manage Vehicles' : 'Add Vehicle';
+            }
+        };
+
+        // Trip History Management
+        let userTrips = [];
+        let tripStats = { totalTrips: 0, totalDistance: 0, totalEnergy: 0, co2Saved: 0 };
+
+        const loadTripHistory = (uid) => {
+            const q = query(collection(db, "users", uid, "trips"));
+            onSnapshot(q, (snapshot) => {
+                userTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTripHistory();
+                updateTripStats();
+            });
+        };
+
+        const addTripToHistory = async (tripData) => {
+            if (!auth.currentUser) return;
+            
+            try {
+                // Create a unique trip identifier based on route
+                const tripId = `${tripData.from.toLowerCase().replace(/\s+/g, '_')}_to_${tripData.to.toLowerCase().replace(/\s+/g, '_')}`;
+                
+                // Check if this exact trip already exists
+                const existingTripQuery = query(
+                    collection(db, "users", auth.currentUser.uid, "trips"),
+                    where("tripId", "==", tripId)
+                );
+                
+                const existingTrips = await getDocs(existingTripQuery);
+                
+                if (!existingTrips.empty) {
+                    // Trip exists, increment frequency
+                    const existingTrip = existingTrips.docs[0];
+                    const currentFreq = existingTrip.data().frequency || 1;
+                    
+                    await updateDoc(existingTrip.ref, {
+                        frequency: currentFreq + 1,
+                        lastCompletedAt: serverTimestamp(),
+                        totalDistance: (existingTrip.data().totalDistance || 0) + (tripData.distance || 0),
+                        totalEnergyUsed: (existingTrip.data().totalEnergyUsed || 0) + (tripData.energyUsed || 0),
+                        totalDuration: (existingTrip.data().totalDuration || 0) + (tripData.duration || 0)
+                    });
+                    
+                    showMessage(`Trip updated! Frequency: ${currentFreq + 1}`, 3000, 'success');
+                } else {
+                    // New trip, create with frequency 1
+            const trip = {
+                        tripId: tripId,
+                        from: tripData.from,
+                        to: tripData.to,
+                        distance: tripData.distance || 0,
+                        duration: tripData.duration || 0,
+                        energyUsed: tripData.energyUsed || 0,
+                        vehicle: tripData.vehicle || 'Unknown Vehicle',
+                        chargingStops: tripData.chargingStops || 0,
+                        waypoints: tripData.waypoints || 0,
+                        frequency: 1,
+                completedAt: serverTimestamp(),
+                        lastCompletedAt: serverTimestamp(),
+                        totalDistance: tripData.distance || 0,
+                        totalEnergyUsed: tripData.energyUsed || 0,
+                        totalDuration: tripData.duration || 0,
+                userId: auth.currentUser.uid
+            };
+            
+                await addDoc(collection(db, "users", auth.currentUser.uid, "trips"), trip);
+                    showMessage('Trip completed and added to history!', 3000, 'success');
+                }
+            } catch (error) {
+                console.error('Error saving trip:', error);
+                showMessage('Failed to save trip to history', 3000, 'error');
+            }
+        };
+
+        const renderTripHistory = () => {
+            const listEl = document.getElementById('trip-history-list');
+            if (!listEl) return;
+
+            console.log('Rendering trip history with', userTrips.length, 'trips');
+            console.log('Trip data:', userTrips);
+
+            if (userTrips.length === 0) {
+                listEl.innerHTML = `<p style="color: var(--text-secondary);">No trips completed yet. Start planning your first route!</p>`;
+                return;
+            }
+
+            listEl.innerHTML = '';
+            userTrips.sort((a, b) => (b.lastCompletedAt?.seconds || b.completedAt?.seconds) - (a.lastCompletedAt?.seconds || a.completedAt?.seconds)).forEach(trip => {
+                console.log('Rendering trip:', trip);
+                console.log('Trip frequency:', trip.frequency);
+                
+                const tripEl = document.createElement('div');
+                tripEl.className = 'glass p-4 rounded-lg';
+                
+                // Handle undefined or missing data
+                const from = trip.from || trip.startLocation || 'Unknown Start';
+                const to = trip.to || trip.endLocation || 'Unknown End';
+                const vehicle = trip.vehicle || trip.vehicleName || 'Unknown Vehicle';
+                
+                const completedDate = trip.lastCompletedAt?.toDate ? trip.lastCompletedAt.toDate().toLocaleDateString() : 
+                                    (trip.completedAt?.toDate ? trip.completedAt.toDate().toLocaleDateString() : 'Unknown date');
+                const duration = trip.duration ? formatDuration(trip.duration) : 'N/A';
+                const frequency = trip.frequency || 1;
+                
+                console.log('Final frequency value:', frequency);
+                
+                tripEl.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-semibold" style="color: var(--text-primary);">${from} → ${to}</h4>
+                            <p class="text-sm" style="color: var(--text-secondary);">Last completed: ${completedDate}</p>
+                            ${frequency > 1 ? `<p class="text-xs" style="color: var(--accent-color);">Completed ${frequency} times</p>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <span class="px-2 py-1 rounded-full text-xs status-available">${vehicle}</span>
+                            ${frequency > 1 ? `<div class="mt-1 px-2 py-1 rounded-full text-xs" style="background: var(--accent); color: white;">${frequency}x</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div><span style="color: var(--text-secondary);">Distance:</span> <span style="color: var(--text-primary);">${trip.distance?.toFixed(1) || 0} km</span></div>
+                        <div><span style="color: var(--text-secondary);">Duration:</span> <span style="color: var(--text-primary);">${duration}</span></div>
+                        <div><span style="color: var(--text-secondary);">Energy:</span> <span style="color: var(--text-primary);">${trip.energyUsed?.toFixed(1) || 0} kWh</span></div>
+                    </div>
+                    ${trip.chargingStops > 0 ? `<div class="mt-2 text-sm" style="color: var(--text-secondary);">Charging stops: ${trip.chargingStops}</div>` : ''}
+                    ${frequency > 1 ? `<div class="mt-2 text-sm" style="color: var(--text-secondary);">Total distance: ${trip.totalDistance?.toFixed(1) || 0} km | Total energy: ${trip.totalEnergyUsed?.toFixed(1) || 0} kWh</div>` : ''}
+                `;
+                listEl.appendChild(tripEl);
+            });
+        };
+
+        const updateTripStats = () => {
+            const stats = userTrips.reduce((acc, trip) => {
+                const frequency = trip.frequency || 1;
+                const totalDistance = trip.totalDistance || (trip.distance || 0) * frequency;
+                const totalEnergy = trip.totalEnergyUsed || (trip.energyUsed || 0) * frequency;
+                
+                return {
+                    totalTrips: acc.totalTrips + frequency,
+                    totalDistance: acc.totalDistance + totalDistance,
+                    totalEnergy: acc.totalEnergy + totalEnergy,
+                    co2Saved: acc.co2Saved + (totalDistance * 0.21) // Approx 210g CO2/km saved vs petrol
+                };
+            }, { totalTrips: 0, totalDistance: 0, totalEnergy: 0, co2Saved: 0 });
+
+            document.getElementById('total-trips').textContent = stats.totalTrips;
+            document.getElementById('total-distance').textContent = `${stats.totalDistance.toFixed(0)} km`;
+            document.getElementById('total-energy').textContent = `${stats.totalEnergy.toFixed(0)} kWh`;
+            document.getElementById('co2-saved').textContent = `${stats.co2Saved.toFixed(0)} kg`;
+        };
+
+        const exportTripHistory = () => {
+            if (userTrips.length === 0) {
+                showMessage('No trips to export', 3000, 'error');
+                return;
+            }
+
+            const csvContent = "data:text/csv;charset=utf-8," + 
+                "Last Completed,From,To,Distance (km),Duration,Energy Used (kWh),Vehicle,Charging Stops,Frequency,Total Distance (km),Total Energy (kWh)\n" +
+                userTrips.map(trip => {
+                    const date = trip.lastCompletedAt?.toDate ? trip.lastCompletedAt.toDate().toLocaleDateString() : 
+                                (trip.completedAt?.toDate ? trip.completedAt.toDate().toLocaleDateString() : '');
+                    const duration = trip.duration ? formatDuration(trip.duration) : '';
+                    const frequency = trip.frequency || 1;
+                    const totalDistance = trip.totalDistance || (trip.distance || 0) * frequency;
+                    const totalEnergy = trip.totalEnergyUsed || (trip.energyUsed || 0) * frequency;
+                    const from = trip.from || trip.startLocation || 'Unknown Start';
+                    const to = trip.to || trip.endLocation || 'Unknown End';
+                    const vehicle = trip.vehicle || trip.vehicleName || 'Unknown Vehicle';
+                    
+                    return `"${date}","${from}","${to}","${trip.distance || 0}","${duration}","${trip.energyUsed || 0}","${vehicle}","${trip.chargingStops || 0}","${frequency}","${totalDistance.toFixed(1)}","${totalEnergy.toFixed(1)}"`;
+                }).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "trip_history.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showMessage('Trip history exported successfully!');
+        };
+
+        const clearTripHistory = async () => {
+            if (!auth.currentUser) {
+                showMessage('You must be logged in to clear trip history', 3000, 'error');
+                return;
+            }
+
+            console.log('Current userTrips length:', userTrips.length);
+            console.log('Current userTrips:', userTrips);
+
+            if (userTrips.length === 0) {
+                showMessage('No trips to clear', 3000, 'info');
+                return;
+            }
+
+            if (confirm(`Are you sure you want to clear all ${userTrips.length} trips from your history? This action cannot be undone.`)) {
+                try {
+                    console.log('Starting to clear trip history for user:', auth.currentUser.uid);
+                    
+                    // Get fresh data from Firebase to ensure we have all trips
+                    const q = query(collection(db, "users", auth.currentUser.uid, "trips"));
+                    const snapshot = await getDocs(q);
+                    const allTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    console.log('Found trips in Firebase:', allTrips.length);
+                    console.log('Firebase trips:', allTrips);
+                    
+                    if (allTrips.length === 0) {
+                        showMessage('No trips found in database', 3000, 'info');
+                        return;
+                    }
+                    
+                    // Delete all trips from Firebase
+                    const deletePromises = allTrips.map(async (trip) => {
+                        const tripRef = doc(db, "users", auth.currentUser.uid, "trips", trip.id);
+                        console.log('Deleting trip from Firebase:', trip.id);
+                        return deleteDoc(tripRef);
+                    });
+                    
+                    await Promise.all(deletePromises);
+                    
+                    // Clear local array
+                    userTrips = [];
+                    tripStats = { totalTrips: 0, totalDistance: 0, totalEnergy: 0, co2Saved: 0 };
+                    
+                    // Update UI immediately
+                    renderTripHistory();
+                    updateTripStats();
+                    
+                    showMessage(`Successfully cleared ${allTrips.length} trips from history!`, 3000, 'success');
+                } catch (error) {
+                    console.error('Error clearing trip history:', error);
+                    showMessage('Failed to clear trip history: ' + error.message, 3000, 'error');
+                }
+            }
+        };
+
+        const cleanOldData = async () => {
+            if (!auth.currentUser) {
+                showMessage('You must be logged in to clean old data', 3000, 'error');
+                return;
+            }
+
+            try {
+                console.log('Starting to clean old malformed data...');
+                
+                // Get all trips from Firebase
+                const q = query(collection(db, "users", auth.currentUser.uid, "trips"));
+                const snapshot = await getDocs(q);
+                const allTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                console.log('Found trips in Firebase:', allTrips.length);
+                
+                if (allTrips.length === 0) {
+                    showMessage('No trips found to clean', 3000, 'info');
+                    return;
+                }
+                
+                // Find malformed trips (trips with missing or invalid data)
+                const malformedTrips = allTrips.filter(trip => {
+                    return !trip.from || !trip.to || 
+                           trip.distance === 0 || trip.distance === undefined ||
+                           trip.energyUsed === 0 || trip.energyUsed === undefined ||
+                           !trip.completedAt || !trip.lastCompletedAt;
+                });
+                
+                console.log('Found malformed trips:', malformedTrips.length);
+                console.log('Malformed trips:', malformedTrips);
+                
+                if (malformedTrips.length === 0) {
+                    showMessage('No malformed data found. All trips are properly formatted!', 3000, 'success');
+                    return;
+                }
+                
+                if (confirm(`Found ${malformedTrips.length} malformed trips. Do you want to delete them? This will remove trips with missing data like "Unknown date" and "0 km".`)) {
+                    // Delete malformed trips
+                    const deletePromises = malformedTrips.map(async (trip) => {
+                        const tripRef = doc(db, "users", auth.currentUser.uid, "trips", trip.id);
+                        console.log('Deleting malformed trip:', trip.id);
+                        return deleteDoc(tripRef);
+                    });
+                    
+                    await Promise.all(deletePromises);
+                    
+                    showMessage(`Successfully cleaned ${malformedTrips.length} malformed trips!`, 3000, 'success');
+                }
+            } catch (error) {
+                console.error('Error cleaning old data:', error);
+                showMessage('Failed to clean old data: ' + error.message, 3000, 'error');
+            }
+        };
+
+        // Make functions globally accessible
+        window.clearTripHistory = clearTripHistory;
+        window.exportTripHistory = exportTripHistory;
+        window.cleanOldData = cleanOldData;
+
+
 
         const updateMapMarkers = (mapInstance, markerArray, markersToShow) => {
             markerArray.forEach(marker => marker.setMap(null));
@@ -706,18 +1714,39 @@
 
             const markerData = markersToShow || allChargers;
 
+            // Custom SVG icons for different charger types
+            const createCustomIcon = (color, type) => {
+                const svg = `
+                    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" fill="${color}" stroke="white" stroke-width="2"/>
+                        <text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">⚡</text>
+                        ${type === 'home' ? '<circle cx="20" cy="20" r="12" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2,2"/>' : ''}
+                    </svg>
+                `;
+                return {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+                    scaledSize: new google.maps.Size(40, 40),
+                    anchor: new google.maps.Point(20, 20)
+                };
+            };
+
             markerData.forEach(charger => {
                 if (!charger.location) return;
-                let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Blue for available public
+                
+                let icon;
                 if (charger.type === 'home' || charger.IsPrivate) {
-                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/purple-dot.png'; // Purple for private/home
+                    icon = createCustomIcon('#8B5CF6', 'home'); // Purple for private/home
                 } else if (charger.status !== 'available') {
-                    iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'; // Red for in-use/maintenance
+                    icon = createCustomIcon('#EF4444', 'unavailable'); // Red for in-use/maintenance
+                } else {
+                    icon = createCustomIcon('#3B82F6', 'available'); // Blue for available public
                 }
+                
                 const marker = new google.maps.Marker({
                     position: { lat: charger.location.latitude, lng: charger.location.longitude },
-                    map: mapInstance, title: charger.name || charger.AddressInfo?.Title,
-                    icon: { url: iconUrl, scaledSize: new google.maps.Size(32, 32) }
+                    map: mapInstance, 
+                    title: charger.name || charger.AddressInfo?.Title,
+                    icon: icon
                 });
                 
                 let infoWindowContent = `<div><strong>${charger.name || charger.AddressInfo?.Title || 'N/A'}</strong><br>
@@ -847,11 +1876,15 @@
             
             const liveMapElement = document.getElementById('live-navigation-map');
             if (!liveNavigationMap) {
+                const currentTheme = document.body.getAttribute('data-theme') || 'light';
+                const mapTheme = getMapTheme(currentTheme);
+                
                 liveNavigationMap = new google.maps.Map(liveMapElement, {
                     zoom: 15,
                     center: directionsResult.routes[0].legs[0].start_location,
                     mapTypeControl: false,
-                    mapTypeId: google.maps.MapTypeId.TERRAIN
+                    mapTypeId: google.maps.MapTypeId.TERRAIN,
+                    styles: mapTheme
                 });
             } else {
                 liveNavigationMap.setCenter(directionsResult.routes[0].legs[0].start_location);
@@ -1019,6 +2052,25 @@
         };
 
         const stopInAppNavigation = () => {
+            // Check if we should complete the trip
+            if (currentRoute && currentRoute.from && currentRoute.to) {
+                const tripData = {
+                    from: currentRoute.from,
+                    to: currentRoute.to,
+                    distance: currentRoute.totalDistance / 1000, // Convert to km
+                    duration: currentRoute.totalDuration,
+                    energyUsed: currentRoute.estimatedEnergyUsed || 0,
+                    vehicle: currentRoute.vehicle || 'Unknown Vehicle',
+                    chargingStops: currentRoute.chargingStops || 0,
+                    waypoints: waypoints.length
+                };
+                
+                // Ask user if they completed the trip
+                if (confirm('Did you complete this trip? This will add it to your trip history.')) {
+                    addTripToHistory(tripData);
+                }
+            }
+            
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
                 watchId = null;
@@ -1027,7 +2079,7 @@
                 userLocationMarker.setMap(null);
                 userLocationMarker = null;
             }
-            currentRoute.selectedPlace = null;
+            if (currentRoute) currentRoute.selectedPlace = null;
             document.getElementById('selected-place-info').classList.add('hidden');
             document.getElementById('turn-by-turn-directions').innerHTML = '';
             speak("Navigation stopped.");
@@ -1118,11 +2170,11 @@
                     const userDoc = userSnapshot.docs[0];
                     vendorUid = userDoc.id;
                     await updateDoc(userDoc.ref, { role: "vendor" });
-                    showMessage(`User ${vendorEmail} has been promoted to a vendor. They can log in with their existing credentials.`, 6000, 'success');
+                    showMessage(`User ${vendorEmail} has been promoted to a vendor. They will be prompted to set a PIN on their next login.`, 8000, 'success');
                 } else {
                     // User does not exist, create a new one
                     const tempKey = 'TEMP' + Math.random().toString(36).substr(2, 8).toUpperCase();
-                    const userCredential = await createUserWithEmailAndPassword(auth, vendorEmail, tempKey);
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, tempKey);
                     vendorUid = userCredential.user.uid;
                     await updateProfile(userCredential.user, { displayName: vendorName });
                     // Create a user doc for the new vendor
@@ -1585,7 +2637,42 @@
                 currentRoute.navigationDirections = null;
                 currentRoute.currentCharge = parseInt(document.getElementById('start-charge').value, 10);
 
-                const majorPoints = [startLocation, ...geocodedWaypoints, endLocation];
+                // Only use waypoints if they're actually needed and don't create unnecessary detours
+                let majorPoints = [startLocation, endLocation];
+                
+                // Only add waypoints if they're significantly off the direct route
+                if (geocodedWaypoints.length > 0) {
+                    const directRoute = await routeOnce({ 
+                        origin: startLocation, 
+                        destination: endLocation, 
+                        travelMode: 'DRIVING' 
+                    });
+                    
+                    if (directRoute.stat === 'OK') {
+                        const directDistance = directRoute.res.routes[0].legs[0].distance.value;
+                        
+                        // Only add waypoints that don't create excessive detours (more than 20% longer)
+                        for (const waypoint of geocodedWaypoints) {
+                            const routeWithWaypoint = await routeOnce({
+                                origin: startLocation,
+                                destination: endLocation,
+                                waypoints: [{ location: waypoint, stopover: true }],
+                                travelMode: 'DRIVING'
+                            });
+                            
+                            if (routeWithWaypoint.stat === 'OK') {
+                                const waypointDistance = routeWithWaypoint.res.routes[0].legs.reduce((sum, leg) => sum + leg.distance.value, 0);
+                                const detourRatio = waypointDistance / directDistance;
+                                
+                                // Only add waypoint if it doesn't create more than 20% detour
+                                if (detourRatio <= 1.2) {
+                                    majorPoints.splice(-1, 0, waypoint); // Insert before end location
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 let allPlannedStops = [];
                 const blacklistedChargerIds = new Set(); 
 
@@ -1597,7 +2684,9 @@
 
                     const segmentStops = await planSegment(segmentStart, segmentEnd, blacklistedChargerIds);
                     if (segmentStops === null) {
-                        throw new Error(`Could not find a valid charging path for the segment ending at ${await getAddress(segmentEnd)}.`);
+                        const startAddress = await getAddress(segmentStart);
+                        const endAddress = await getAddress(segmentEnd);
+                        throw new Error(`Could not find a valid charging path between ${startAddress} and ${endAddress}. This may be due to insufficient charging infrastructure in the area. Try adjusting your route or starting with a higher charge level.`);
                     }
                     allPlannedStops.push(...segmentStops);
                 }
@@ -1621,23 +2710,236 @@
                 });
 
             } catch (error) {
-                showMessage(`Error: ${error.message}`, 5000, 'error');
+                console.error('Route planning error:', error);
                 currentRoute.isPlanning = false;
-                 document.getElementById('route-details').innerHTML = `<p class="text-red-500 p-4">Route planning failed. Please try again.</p>`;
+                
+                let errorMessage = "Route planning failed. Please try again.";
+                if (error.message.includes('Geocode failed')) {
+                    errorMessage = "Invalid waypoint address. Please check your waypoints and try again.";
+                } else if (error.message.includes('ZERO_RESULTS')) {
+                    errorMessage = "No route found. Please check your start and destination addresses.";
+                } else if (error.message.includes('OVER_QUERY_LIMIT')) {
+                    errorMessage = "Too many requests. Please wait a moment and try again.";
+                } else if (error.message.includes('REQUEST_DENIED')) {
+                    errorMessage = "Route planning service unavailable. Please try again later.";
+                }
+                
+                showMessage(errorMessage, 5000, 'error');
+                document.getElementById('route-details').innerHTML = `
+                    <div class="p-4 rounded-lg" style="background: var(--bg-secondary); border: 1px solid var(--border);">
+                        <div class="flex items-center gap-3 mb-3">
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            <h3 class="text-lg font-semibold" style="color: var(--text-primary);">Route Planning Failed</h3>
+                        </div>
+                        <p class="mb-4" style="color: var(--text-secondary);">${errorMessage}</p>
+                        
+                        <div class="mb-4 p-3 rounded-lg" style="background: var(--bg-tertiary); border: 1px solid var(--border);">
+                            <h4 class="font-semibold mb-2" style="color: var(--text-primary);">💡 Suggestions:</h4>
+                            <ul class="text-sm space-y-1" style="color: var(--text-secondary);">
+                                <li>• Start with a higher charge level (80-100%)</li>
+                                <li>• Add waypoints through major cities with charging infrastructure</li>
+                                <li>• Try a different route that passes through urban areas</li>
+                                <li>• Check if your vehicle's range settings are correct</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="startStopPlanning()" class="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105" style="background: var(--primary); color: white;">Try Again</button>
+                            <button onclick="suggestAlternativeRoute()" class="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105" style="background: var(--secondary); color: white;">Find Alternative Route</button>
+                            <button onclick="showSection('find-chargers')" class="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border);">Back to Planner</button>
+                        </div>
+                    </div>
+                `;
             }
         };
 
         // === Unified EV Route Planner Patch ===
         const routeOnce = (req) => new Promise(r => directionsService.route(req, (res, stat) => r({ res, stat })));
 
+        async function scoreChargerOption({ currentLegOrigin, charger, segmentEnd, vehicle, currentChargePct, kwhPerKm, targetArrivalPct }) {
+            const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
+
+            const toCharger = await routeOnce({ origin: currentLegOrigin, destination: chargerLoc, travelMode: 'DRIVING', drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' } });
+            if (toCharger.stat !== 'OK') return null;
+            const legToCharger = toCharger.res.routes[0].legs[0];
+            const distToChargerKm = legToCharger.distance.value / 1000;
+            const timeToChargerSec = (legToCharger.duration_in_traffic ? legToCharger.duration_in_traffic.value : legToCharger.duration.value);
+
+            const arrivalPct = currentChargePct - kwhToPercent(vehicle, distToChargerKm * kwhPerKm);
+            if (arrivalPct <= 0) return null;
+
+            const toEnd = await routeOnce({ origin: chargerLoc, destination: segmentEnd, travelMode: 'DRIVING', drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' } });
+            if (toEnd.stat !== 'OK') return null;
+            const legToEnd = toEnd.res.routes[0].legs[0];
+            const distFromChargerToEndKm = legToEnd.distance.value / 1000;
+            const timeFromChargerToEndSec = (legToEnd.duration_in_traffic ? legToEnd.duration_in_traffic.value : legToEnd.duration.value);
+
+            const energyNeededKwh = distFromChargerToEndKm * kwhPerKm + percentToKwh(vehicle, targetArrivalPct);
+            const haveKwhAtArrival = percentToKwh(vehicle, Math.max(arrivalPct, 0));
+            const deltaKwh = Math.max(0, energyNeededKwh - haveKwhAtArrival);
+            const chargeTimeSec = estimateChargeTimeSeconds(charger.rate || charger.Connections?.[0]?.PowerKW || 11, deltaKwh);
+
+            const totalAddedSec = timeToChargerSec + chargeTimeSec + timeFromChargerToEndSec;
+            return { charger, arrivalPct, chargeNeededKwh: deltaKwh, totalAddedSec, toChargerRoute: toCharger.res };
+        }
+
+        // Function to suggest alternative routes
+        const suggestAlternativeRoute = async () => {
+            try {
+                const startInput = document.getElementById('route-start');
+                const endInput = document.getElementById('route-end');
+                
+                if (!startInput || !endInput) {
+                    showMessage('Please enter start and destination locations first.', 3000, 'error');
+                    return;
+                }
+                
+                const startAddress = startInput.value;
+                const endAddress = endInput.value;
+                
+                if (!startAddress || !endAddress) {
+                    showMessage('Please enter both start and destination locations.', 3000, 'error');
+                    return;
+                }
+                
+                showMessage('Finding alternative routes with better charging infrastructure...', 3000, 'info');
+                
+                // Geocode the addresses
+                const startGeocode = await new Promise((resolve, reject) => {
+                    geocoder.geocode({ address: startAddress }, (results, status) => {
+                        if (status === 'OK') resolve(results[0].geometry.location);
+                        else reject(new Error(`Geocode failed for start: ${status}`));
+                    });
+                });
+                
+                const endGeocode = await new Promise((resolve, reject) => {
+                    geocoder.geocode({ address: endAddress }, (results, status) => {
+                        if (status === 'OK') resolve(results[0].geometry.location);
+                        else reject(new Error(`Geocode failed for end: ${status}`));
+                    });
+                });
+                
+                // Find major cities along the route for waypoints
+                const midPoint = new google.maps.LatLng(
+                    (startGeocode.lat() + endGeocode.lat()) / 2,
+                    (startGeocode.lng() + endGeocode.lng()) / 2
+                );
+                
+                // Common major cities in India with good charging infrastructure
+                const majorCities = [
+                    { name: 'Bangalore', lat: 12.9716, lng: 77.5946 },
+                    { name: 'Chennai', lat: 13.0827, lng: 80.2707 },
+                    { name: 'Hyderabad', lat: 17.3850, lng: 78.4867 },
+                    { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+                    { name: 'Delhi', lat: 28.7041, lng: 77.1025 },
+                    { name: 'Kolkata', lat: 22.5726, lng: 88.3639 },
+                    { name: 'Pune', lat: 18.5204, lng: 73.8567 },
+                    { name: 'Ahmedabad', lat: 23.0225, lng: 72.5714 },
+                    { name: 'Kochi', lat: 9.9312, lng: 76.2673 },
+                    { name: 'Coimbatore', lat: 11.0168, lng: 76.9558 }
+                ];
+                
+                // Find the closest major city to the midpoint
+                let closestCity = null;
+                let minDistance = Infinity;
+                
+                majorCities.forEach(city => {
+                    const cityLocation = new google.maps.LatLng(city.lat, city.lng);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(midPoint, cityLocation);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestCity = city;
+                    }
+                });
+                
+                if (closestCity) {
+                    // Add the major city as a waypoint
+                    const waypointInput = document.getElementById('waypoint-input');
+                    if (waypointInput) {
+                        waypointInput.value = closestCity.name;
+                        showMessage(`Added ${closestCity.name} as a waypoint for better charging options.`, 4000, 'success');
+                        
+                        // Try planning the route again
+                        setTimeout(() => {
+                            startStopPlanning();
+                        }, 2000);
+                    }
+                } else {
+                    showMessage('Could not find a suitable alternative route. Please try manually adding waypoints through major cities.', 5000, 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Error suggesting alternative route:', error);
+                showMessage('Failed to suggest alternative route. Please try manually adding waypoints.', 5000, 'error');
+            }
+        };
+
+        // Helper function to find chargers near a location
+        const findChargersNearLocation = async (location, radiusKm = 25) => {
+            try {
+                const allChargers = [];
+                
+                // Fetch from Firebase
+                if (db) {
+                    const chargersSnapshot = await getDocs(collection(db, 'chargers'));
+                    chargersSnapshot.forEach(doc => {
+                        const charger = { id: doc.id, ...doc.data() };
+                        if (charger.location) {
+                            allChargers.push(charger);
+                        }
+                    });
+                }
+                
+                // Fetch from OpenChargeMap API
+                try {
+                    const response = await fetch(`https://api.openchargemap.io/v3/poi/?output=json&countrycode=IN&maxresults=50&latitude=${location.lat()}&longitude=${location.lng()}&distance=${radiusKm}&distanceunit=km`);
+                    if (response.ok) {
+                        const apiChargers = await response.json();
+                        apiChargers.forEach(charger => {
+                            if (charger.AddressInfo) {
+                                allChargers.push({
+                                    id: `ocm_${charger.ID}`,
+                                    name: charger.AddressInfo.Title || 'Unknown Charger',
+                                    location: {
+                                        latitude: charger.AddressInfo.Latitude,
+                                        longitude: charger.AddressInfo.Longitude
+                                    },
+                                    powerKw: charger.Connections?.[0]?.PowerKW || 30,
+                                    status: 'unknown',
+                                    connectorTypes: charger.Connections?.map(c => c.ConnectionType?.Title) || ['Unknown']
+                                });
+                            }
+                        });
+                    }
+                } catch (apiError) {
+                    console.log('OpenChargeMap API failed:', apiError);
+                }
+                
+                // Filter by distance
+                return allChargers.filter(charger => {
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        location,
+                        new google.maps.LatLng(charger.location.latitude, charger.location.longitude)
+                    ) / 1000;
+                    return distance <= radiusKm;
+                });
+                
+            } catch (error) {
+                console.error('Error finding chargers near location:', error);
+                return [];
+            }
+        };
+
         function estimateKwhPerKm(leg) {
-            const BASE = 0.18;
+            const BASE = 0.18; // Restored to original value from index(1).html
             const dur = (leg.duration_in_traffic ? leg.duration_in_traffic.value : leg.duration.value) || 0;
             const distKm = (leg.distance?.value || 0) / 1000;
             if (!dur || !distKm) return BASE;
             const avgSpeedKph = distKm / (dur / 3600);
             const trafficFactor = (leg.duration_in_traffic && leg.duration) ? (leg.duration_in_traffic.value / Math.max(1, leg.duration.value)) : 1;
-            let speedAdj = 1.03;
+            let speedAdj = 1.03; // Restored to original logic
             if (avgSpeedKph < 40) speedAdj = 1.10;
             else if (avgSpeedKph > 90) speedAdj = 1.05;
             return BASE * trafficFactor * speedAdj;
@@ -1675,38 +2977,11 @@
             return false;
         }
 
-        async function scoreChargerOption({ currentLegOrigin, charger, segmentEnd, vehicle, currentChargePct, kwhPerKm, targetArrivalPct }) {
-            const chargerLoc = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
-
-            const toCharger = await routeOnce({ origin: currentLegOrigin, destination: chargerLoc, travelMode: 'DRIVING', drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' } });
-            if (toCharger.stat !== 'OK') return null;
-            const legToCharger = toCharger.res.routes[0].legs[0];
-            const distToChargerKm = legToCharger.distance.value / 1000;
-            const timeToChargerSec = (legToCharger.duration_in_traffic ? legToCharger.duration_in_traffic.value : legToCharger.duration.value);
-
-            const arrivalPct = currentChargePct - kwhToPercent(vehicle, distToChargerKm * kwhPerKm);
-            if (arrivalPct <= 0) return null;
-
-            const toEnd = await routeOnce({ origin: chargerLoc, destination: segmentEnd, travelMode: 'DRIVING', drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' } });
-            if (toEnd.stat !== 'OK') return null;
-            const legToEnd = toEnd.res.routes[0].legs[0];
-            const distFromChargerToEndKm = legToEnd.distance.value / 1000;
-            const timeFromChargerToEndSec = (legToEnd.duration_in_traffic ? legToEnd.duration_in_traffic.value : legToEnd.duration.value);
-
-            const energyNeededKwh = distFromChargerToEndKm * kwhPerKm + percentToKwh(vehicle, targetArrivalPct);
-            const haveKwhAtArrival = percentToKwh(vehicle, Math.max(arrivalPct, 0));
-            const deltaKwh = Math.max(0, energyNeededKwh - haveKwhAtArrival);
-            const chargeTimeSec = estimateChargeTimeSeconds(charger.rate || charger.Connections?.[0]?.PowerKW || 11, deltaKwh);
-
-            const totalAddedSec = timeToChargerSec + chargeTimeSec + timeFromChargerToEndSec;
-            return { charger, arrivalPct, chargeNeededKwh: deltaKwh, totalAddedSec, toChargerRoute: toCharger.res };
-        }
-
         const planSegment = (segmentStart, segmentEnd, blacklistedChargerIds) => new Promise(async (resolve) => {
             const segmentWaypoints = [];
             let currentLegOrigin = segmentStart;
             let iter = 0;
-            const MAX_ITER = 24;
+            const MAX_ITER = 24; // Restored to original value for better accuracy
 
             while (iter++ < MAX_ITER) {
                 const baseRes = await routeOnce({ origin: currentLegOrigin, destination: segmentEnd, travelMode: 'DRIVING', drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' } });
@@ -1729,7 +3004,7 @@
                 }
 
                 const segmentChargers = await fetchChargersForRoute(baseRes.res.routes[0]);
-                const safetyPct = 12;
+                const safetyPct = 12; // Restored to original safety margin
                 const maxReachKm = totalRangeKm * ((currentRoute.currentCharge - safetyPct) / 100);
                 
                 const prelim = segmentChargers.filter(c => {
@@ -1852,49 +3127,78 @@
         
         const findNearbyPlaces = (charger) => {
             const nearbyPlacesContainer = document.getElementById('nearby-places');
-            nearbyPlacesContainer.innerHTML = `<div class="text-center p-4"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><p class="mt-2 font-semibold text-gray-700">Searching for nearby places...</p></div>`;
+            nearbyPlacesContainer.innerHTML = `<div class="text-center p-4"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2" style="border-color: var(--primary);"></div><p class="mt-2 font-semibold" style="color: var(--text-secondary);">Searching for nearby places...</p></div>`;
             nearbyPlacesContainer.classList.remove('hidden');
 
             const location = new google.maps.LatLng(charger.location.latitude, charger.location.longitude);
+
+            // Ensure placesService is initialized
+            if (!placesService) {
+                placesService = new google.maps.places.PlacesService(mainMap || nearMeMap);
+            }
 
             const placeTypes = [
                 { title: 'Restaurants', type: 'restaurant' },
                 { title: 'Cafes', type: 'cafe' },
                 { title: 'Hotels', type: 'lodging' },
-                { title: 'Attractions', type: 'tourist_attraction' }
+                { title: 'Attractions', type: 'tourist_attraction' },
+                { title: 'Gas Stations', type: 'gas_station' },
+                { title: 'Shopping', type: 'shopping_mall' }
             ];
 
             const searchPromises = placeTypes.map(placeType => {
                 return new Promise((resolve) => {
+                    const radiusKm = document.getElementById('nearby-radius')?.value || 5;
+                    const radiusMeters = radiusKm * 1000;
+                    
                     const request = {
                         location: location,
-                        radius: '2000', // 2km radius
+                        radius: radiusMeters.toString(),
                         type: [placeType.type]
                     };
+                    
+                    try {
                     placesService.nearbySearch(request, (results, status) => {
+                            console.log(`Places API search for ${placeType.title}:`, status, results?.length || 0);
+                            
                         if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
                             resolve({ title: placeType.title, places: results });
+                            } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+                                console.log(`No ${placeType.title} found nearby`);
+                                resolve({ title: placeType.title, places: [] });
                         } else {
+                                console.error(`Places API error for ${placeType.title}:`, status);
                             resolve({ title: placeType.title, places: [] });
                         }
                     });
+                    } catch (error) {
+                        console.error(`Error searching for ${placeType.title}:`, error);
+                        resolve({ title: placeType.title, places: [] });
+                    }
                 });
             });
 
             Promise.all(searchPromises).then(results => {
                 let allResultsHTML = '';
                 let hasResults = false;
+                
                 results.forEach(category => {
-                    if (category.places.length > 0) {
+                    if (category.places && category.places.length > 0) {
                         hasResults = true;
-                        let html = `<h4 class="font-bold text-lg mt-4 mb-2">${category.title} Nearby</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-2">`;
+                        let html = `<h4 class="font-bold text-lg mt-4 mb-2" style="color: var(--text-primary);">${category.title} Nearby</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-2">`;
                         category.places.slice(0, 4).forEach(place => {
-                            const placeName = place.name.replace(/'/g, "\\'");
-                            const placeVicinity = (place.vicinity || '').replace(/'/g, "\\'");
-                            html += `<div class="bg-white p-2 rounded-lg shadow-sm cursor-pointer hover:bg-indigo-50" onclick="selectNearbyPlace('${placeName}', '${placeVicinity}')">
-                                <p class="font-semibold text-sm">${place.name}</p>
-                                <p class="text-xs text-gray-500">${place.vicinity || 'Address not available'}</p>
-                                ${place.rating ? `<p class="text-xs text-yellow-500 font-bold">⭐ ${place.rating}</p>` : ''}
+                            const placeName = place.name ? place.name.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Unknown Place';
+                            const placeVicinity = place.vicinity ? place.vicinity.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Address not available';
+                            const rating = place.rating ? place.rating.toFixed(1) : 'N/A';
+                            const priceLevel = place.price_level ? '₹'.repeat(place.price_level) : '';
+                            
+                            html += `<div class="glass p-3 rounded-lg cursor-pointer hover:bg-opacity-80 transition-all" onclick="selectNearbyPlace('${placeName}', '${placeVicinity}')">
+                                <p class="font-semibold text-sm" style="color: var(--text-primary);">${place.name}</p>
+                                <p class="text-xs" style="color: var(--text-secondary);">${place.vicinity || 'Address not available'}</p>
+                                <div class="flex justify-between items-center mt-1">
+                                    ${place.rating ? `<p class="text-xs text-yellow-500 font-bold">⭐ ${rating}</p>` : ''}
+                                    ${priceLevel ? `<p class="text-xs" style="color: var(--accent-color);">${priceLevel}</p>` : ''}
+                                </div>
                             </div>`;
                         });
                         html += `</div>`;
@@ -1905,8 +3209,19 @@
                 if (hasResults) {
                     nearbyPlacesContainer.innerHTML = allResultsHTML;
                 } else {
-                    nearbyPlacesContainer.innerHTML = `<p class="text-gray-600">No popular places found within 2km of the charger.</p>`;
+                    nearbyPlacesContainer.innerHTML = `
+                        <div class="text-center p-4">
+                            <p style="color: var(--text-secondary);">No popular places found within 5km of the charger.</p>
+                            <p class="text-sm mt-2" style="color: var(--text-secondary);">Try searching in a different area or check if Places API is enabled.</p>
+                        </div>`;
                 }
+            }).catch(error => {
+                console.error('Error in findNearbyPlaces:', error);
+                nearbyPlacesContainer.innerHTML = `
+                    <div class="text-center p-4">
+                        <p style="color: var(--text-secondary);">Error loading nearby places.</p>
+                        <p class="text-sm mt-2" style="color: var(--text-secondary);">Please check your internet connection and try again.</p>
+                    </div>`;
             });
         };
 
@@ -1914,6 +3229,358 @@
         const selectNearbyPlace = (name, vicinity) => {
             currentRoute.selectedPlace = { name, vicinity };
             showMessage(`'${name}' selected for your stop. This will be shown during live navigation.`, 4000, 'success');
+        };
+
+        // Function to find chargers near user's location
+        const findChargersNearMe = async (userPosition) => {
+            console.log('findChargersNearMe called with position:', userPosition);
+            
+            if (!nearMeMap) {
+                console.error('Near Me Map not initialized');
+                showMessage('❌ Map not initialized. Please refresh the page.', 4000, 'error');
+                return;
+            }
+
+            console.log('Near Me Map is initialized, proceeding with search...');
+
+            // Show loading indicator
+            const loadingMessage = showMessage('🔍 Searching for chargers near your location...', 0, 'info');
+            
+            // Add loading overlay to map
+            const mapContainer = document.getElementById('chargers-near-me-map');
+            if (mapContainer) {
+                // Remove any existing loading overlay
+                const existingOverlay = document.getElementById('chargers-loading-overlay');
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                }
+                
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'chargers-loading-overlay';
+                loadingOverlay.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    border-radius: 8px;
+                `;
+                loadingOverlay.innerHTML = `
+                    <div style="background: white; border-radius: 8px; padding: 24px; text-align: center; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                        <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top: 3px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
+                        <p style="color: #374151; font-weight: 600; margin: 0 0 8px 0; font-size: 16px;">Finding chargers...</p>
+                        <p style="color: #6b7280; margin: 0; font-size: 14px;">This may take a few seconds</p>
+                    </div>
+                `;
+                
+                // Add CSS animation if not already present
+                if (!document.getElementById('loading-spinner-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'loading-spinner-style';
+                    style.textContent = `
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                mapContainer.style.position = 'relative';
+                mapContainer.appendChild(loadingOverlay);
+                console.log('Loading overlay added to map');
+            } else {
+                console.error('Map container not found');
+            }
+
+            try {
+                console.log('Starting charger search for position:', userPosition);
+                
+                // Get all chargers from Firebase
+                let allChargers = [];
+                try {
+                    console.log('Fetching chargers from Firebase...');
+                    const chargersSnapshot = await getDocs(collection(db, "chargers"));
+                    allChargers = chargersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    console.log(`Found ${allChargers.length} chargers in Firebase`);
+                } catch (error) {
+                    console.error('Firebase chargers fetch error:', error);
+                }
+
+                // Also fetch from OpenChargeMap API for more comprehensive results
+                let ocmChargers = [];
+                try {
+                    console.log('Fetching chargers from OpenChargeMap API...');
+                    const ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&countrycode=IN&maxresults=1000&key=${openChargeMapApiKey}`;
+                    
+                    // Add timeout and retry logic
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                    
+                    const response = await fetch(ocmUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log(`OpenChargeMap API returned ${data.length} chargers`);
+                        
+                        ocmChargers = data.map(charger => ({
+                            id: `ocm_${charger.ID}`,
+                            name: charger.AddressInfo?.Title || 'Unknown Charger',
+                            location: {
+                                latitude: charger.AddressInfo?.Latitude,
+                                longitude: charger.AddressInfo?.Longitude
+                            },
+                            rate: charger.Connections?.[0]?.PowerKW || 'N/A',
+                            type: 'public',
+                            status: 'available',
+                            IsPrivate: false,
+                            AddressInfo: charger.AddressInfo,
+                            Connections: charger.Connections
+                        })).filter(charger => charger.location?.latitude && charger.location?.longitude);
+                        
+                        console.log(`Filtered to ${ocmChargers.length} valid OCM chargers`);
+                    } else {
+                        console.error('OpenChargeMap API response not ok:', response.status, response.statusText);
+                        // Try with a different endpoint or parameters
+                        console.log('Trying alternative API call...');
+                        const altUrl = `https://api.openchargemap.io/v3/poi/?output=json&countrycode=IN&maxresults=500&key=${openChargeMapApiKey}`;
+                        try {
+                            const altResponse = await fetch(altUrl);
+                            if (altResponse.ok) {
+                                const altData = await altResponse.json();
+                                console.log(`Alternative API call returned ${altData.length} chargers`);
+                                // Process alternative data...
+                            }
+                        } catch (altError) {
+                            console.error('Alternative API call also failed:', altError);
+                        }
+                    }
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        console.error('OpenChargeMap API request timed out');
+                    } else {
+                        console.error('OpenChargeMap API error:', error);
+                    }
+                }
+
+                // If no chargers found from APIs, use fallback sample data
+                if (allChargers.length === 0 && ocmChargers.length === 0) {
+                    console.log('No chargers found from APIs, using fallback data');
+                    ocmChargers = getFallbackChargers(userPosition);
+                }
+
+                // Combine all chargers
+                const combinedChargers = [...allChargers, ...ocmChargers];
+                console.log(`Total combined chargers: ${combinedChargers.length}`);
+
+                // Filter chargers within radius of user location
+                const radiusKm = parseInt(document.getElementById('near-me-radius')?.value || 10);
+                const nearbyChargers = combinedChargers.filter(charger => {
+                    if (!charger.location?.latitude || !charger.location?.longitude) return false;
+                    
+                    const distance = calculateDistance(
+                        userPosition.lat, userPosition.lng,
+                        charger.location.latitude, charger.location.longitude
+                    );
+                    
+                    return distance <= radiusKm;
+                });
+
+                console.log(`Found ${nearbyChargers.length} chargers within ${radiusKm}km`);
+
+                // Sort by distance
+                nearbyChargers.sort((a, b) => {
+                    const distA = calculateDistance(
+                        userPosition.lat, userPosition.lng,
+                        a.location.latitude, a.location.longitude
+                    );
+                    const distB = calculateDistance(
+                        userPosition.lat, userPosition.lng,
+                        b.location.latitude, b.location.longitude
+                    );
+                    return distA - distB;
+                });
+
+                // Update map markers
+                updateMapMarkers(nearMeMap, nearMeChargerMarkers, nearbyChargers);
+
+                // Update the map bounds to show all nearby chargers
+                if (nearbyChargers.length > 0) {
+                    const bounds = new google.maps.LatLngBounds();
+                    bounds.extend(userPosition);
+                    nearbyChargers.forEach(charger => {
+                        bounds.extend({
+                            lat: charger.location.latitude,
+                            lng: charger.location.longitude
+                        });
+                    });
+                    nearMeMap.fitBounds(bounds);
+                }
+
+                // Show results message
+                if (nearbyChargers.length > 0) {
+                    showMessage(`✅ Found ${nearbyChargers.length} chargers within ${radiusKm}km of your location`, 4000, 'success');
+                } else {
+                    showMessage(`⚠️ No chargers found within ${radiusKm}km. Try increasing the search radius.`, 4000, 'warning');
+                }
+
+            } catch (error) {
+                console.error('Error finding nearby chargers:', error);
+                showMessage('❌ Error loading nearby chargers. Please try again.', 4000, 'error');
+                
+                // Add retry button to the map
+                const retryOverlay = document.createElement('div');
+                retryOverlay.id = 'chargers-retry-overlay';
+                retryOverlay.className = 'absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10';
+                retryOverlay.innerHTML = `
+                    <div class="bg-white rounded-lg p-6 text-center">
+                        <p class="text-gray-700 font-semibold mb-4">Failed to load chargers</p>
+                        <button onclick="retryChargerSearch()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                            Retry Search
+                        </button>
+                    </div>
+                `;
+                mapContainer.appendChild(retryOverlay);
+            } finally {
+                // Remove loading overlay
+                const overlay = document.getElementById('chargers-loading-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+                // Clear loading message
+                if (loadingMessage) {
+                    clearTimeout(loadingMessage);
+                }
+            }
+        };
+
+        // Test function for charger loading
+        const testChargerLoading = () => {
+            console.log('Testing charger loading...');
+            const testPosition = {
+                lat: 8.5241, // Thiruvananthapuram coordinates
+                lng: 76.9366
+            };
+            console.log('Using test position:', testPosition);
+            findChargersNearMe(testPosition);
+        };
+
+        // Retry function for charger search
+        const retryChargerSearch = () => {
+            const retryOverlay = document.getElementById('chargers-retry-overlay');
+            if (retryOverlay) {
+                retryOverlay.remove();
+            }
+            
+            // Get current user position and retry
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    findChargersNearMe(pos);
+                }, () => {
+                    showMessage('❌ Could not get your location. Please try again.', 4000, 'error');
+                });
+            } else {
+                showMessage('❌ Geolocation not supported by your browser.', 4000, 'error');
+            }
+        };
+
+        // Fallback charger data for when APIs fail
+        const getFallbackChargers = (userPosition) => {
+            const fallbackChargers = [
+                {
+                    id: 'fallback_1',
+                    name: 'Sample EV Charging Station 1',
+                    location: {
+                        latitude: userPosition.lat + 0.01,
+                        longitude: userPosition.lng + 0.01
+                    },
+                    rate: '50',
+                    type: 'public',
+                    status: 'available',
+                    IsPrivate: false
+                },
+                {
+                    id: 'fallback_2',
+                    name: 'Sample EV Charging Station 2',
+                    location: {
+                        latitude: userPosition.lat - 0.01,
+                        longitude: userPosition.lng + 0.01
+                    },
+                    rate: '30',
+                    type: 'public',
+                    status: 'available',
+                    IsPrivate: false
+                },
+                {
+                    id: 'fallback_3',
+                    name: 'Sample EV Charging Station 3',
+                    location: {
+                        latitude: userPosition.lat + 0.01,
+                        longitude: userPosition.lng - 0.01
+                    },
+                    rate: '22',
+                    type: 'public',
+                    status: 'available',
+                    IsPrivate: false
+                }
+            ];
+            
+            console.log('Using fallback charger data');
+            return fallbackChargers;
+        };
+
+        // Helper function to calculate distance between two points
+        const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371; // Radius of the Earth in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; // Distance in km
+        };
+
+        // Debug function to test Places API
+        const testPlacesAPI = () => {
+            if (!placesService) {
+                console.error('Places Service not initialized');
+                return;
+            }
+            
+            const testLocation = new google.maps.LatLng(8.5241, 76.9366); // Thiruvananthapuram
+            const request = {
+                location: testLocation,
+                radius: '1000',
+                type: ['restaurant']
+            };
+            
+            placesService.nearbySearch(request, (results, status) => {
+                console.log('Places API Test Result:', status, results);
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    console.log('Places API is working correctly');
+                } else {
+                    console.error('Places API Error:', status);
+                }
+            });
         };
 
         const locateMe = (mapId) => {
@@ -1948,6 +3615,10 @@
                                 strokeColor: 'white'
                             }
                         });
+                        
+                        // Find and display nearby chargers
+                        console.log('Calling findChargersNearMe with position:', pos);
+                        findChargersNearMe(pos);
                     }
 
                     if (targetMap) {
@@ -2004,16 +3675,55 @@
         
         const initUserMap = () => {
              if (mainMap) return;
-             const defaultLocation = { lat: 19.0760, lng: 72.8777 }; // Mumbai
+             
+             try {
+                 const defaultLocation = { lat: 8.5241, lng: 76.9366 }; // Thiruvananthapuram
+                 
+                 const currentTheme = document.body.getAttribute('data-theme') || 'light';
+                 const mapTheme = getMapTheme(currentTheme);
+                 
              mainMap = new google.maps.Map(document.getElementById("map"), {
                  zoom: 10,
                  center: defaultLocation,
                  mapTypeControl: false,
-                 mapTypeId: google.maps.MapTypeId.TERRAIN
+                     mapTypeId: google.maps.MapTypeId.TERRAIN,
+                     styles: mapTheme,
+                     disableDefaultUI: false,
+                     zoomControl: true,
+                     streetViewControl: false,
+                     fullscreenControl: true,
+                     mapTypeControl: true,
+                     mapTypeControlOptions: {
+                         style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                         position: google.maps.ControlPosition.TOP_CENTER
+                     }
              });
              directionsService = new google.maps.DirectionsService();
              geocoder = new google.maps.Geocoder();
              placesService = new google.maps.places.PlacesService(mainMap);
+                 console.log("Places Service initialized with mainMap");
+             } catch (error) {
+                 console.error('Failed to initialize main map:', error);
+                 showMessage('Failed to load map. Please check your internet connection.', 5000, 'error');
+                 // Show fallback message
+                 const mapElement = document.getElementById("map");
+                 if (mapElement) {
+                     mapElement.innerHTML = `
+                         <div class="flex items-center justify-center h-full bg-gray-100 rounded-lg">
+                             <div class="text-center p-6">
+                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                 </svg>
+                                 <h3 class="text-lg font-semibold text-gray-700 mb-2">Map Unavailable</h3>
+                                 <p class="text-gray-500 mb-4">Unable to load Google Maps. Please check your internet connection.</p>
+                                 <button onclick="initUserMap()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                     Retry
+                                 </button>
+                             </div>
+                         </div>
+                     `;
+                 }
+             }
              const startInput = document.getElementById('route-start');
              const endInput = document.getElementById('route-end');
              const waypointInput = document.getElementById('waypoint-input');
@@ -2025,6 +3735,7 @@
              document.getElementById('end-charge').addEventListener('input', (e) => { document.getElementById('end-charge-value').textContent = e.target.value; });
              document.getElementById('search-radius').addEventListener('input', (e) => { document.getElementById('search-radius-value').textContent = e.target.value; });
              document.getElementById('nearby-radius').addEventListener('input', (e) => { document.getElementById('nearby-radius-value').textContent = e.target.value; });
+             document.getElementById('near-me-radius').addEventListener('input', (e) => { document.getElementById('near-me-radius-value').textContent = e.target.value; });
              setupEnterKeyNavigation();
              console.log("User Map Initialized");
         };
@@ -2059,9 +3770,9 @@
             container.innerHTML = '';
             waypoints.forEach((wp, index) => {
                 const div = document.createElement('div');
-                div.className = 'flex items-center justify-between bg-gray-200 p-2 rounded-lg';
-                div.innerHTML = `<span class="text-sm">${wp}</span>
-                                 <button onclick="removeWaypoint(${index})" class="text-red-500 font-bold text-lg">&times;</button>`;
+                div.className = 'flex items-center justify-between glass p-2 rounded-lg';
+                div.innerHTML = `<span class="text-sm" style="color: var(--text-primary);">${wp}</span>
+                                 <button onclick="removeWaypoint(${index})" class="font-bold text-lg" style="color:#ef4444;">&times;</button>`;
                 container.appendChild(div);
             });
         };
@@ -2069,23 +3780,33 @@
 
         const initChargersNearMeMap = () => {
             if (nearMeMap) return;
-            const defaultLocation = { lat: 19.0760, lng: 72.8777 }; // Mumbai
+            const defaultLocation = { lat: 8.5241, lng: 76.9366 }; // Thiruvananthapuram
+            
+            const currentTheme = document.body.getAttribute('data-theme') || 'light';
+            const mapTheme = getMapTheme(currentTheme);
+            
             nearMeMap = new google.maps.Map(document.getElementById("chargers-near-me-map"), {
                  zoom: 10,
                  center: defaultLocation,
                  mapTypeControl: false,
-                 mapTypeId: google.maps.MapTypeId.TERRAIN
+                 mapTypeId: google.maps.MapTypeId.TERRAIN,
+                 styles: mapTheme
             });
             console.log("Chargers Near Me Map Initialized");
         };
 
         const initVendorMap = () => {
             if (vendorMap || !document.getElementById('vendor-map')) return;
-            const defaultLocation = { lat: 19.0760, lng: 72.8777 }; // Mumbai
+            const defaultLocation = { lat: 8.5241, lng: 76.9366 }; // Thiruvananthapuram
+            
+            const currentTheme = document.body.getAttribute('data-theme') || 'light';
+            const mapTheme = getMapTheme(currentTheme);
+            
             vendorMap = new google.maps.Map(document.getElementById("vendor-map"), {
                 zoom: 5,
                 center: defaultLocation,
                 mapTypeControl: false,
+                styles: mapTheme
             });
             renderVendorMapMarkers(); // Draw markers as soon as map is ready
             console.log("Vendor Map Initialized");
@@ -2277,8 +3998,119 @@
             initChargersNearMeMap();
         };
 
+        // === DEBUGGING FUNCTIONS ===
+        
+        // Debug function to check application state
+        const debugAppState = () => {
+            console.log('=== APPLICATION DEBUG STATE ===');
+            console.log('Current User:', auth?.currentUser);
+            console.log('Firebase DB:', db ? 'Connected' : 'Not Connected');
+            console.log('Is Online:', isOnline);
+            console.log('Current Theme:', document.body.getAttribute('data-theme'));
+            console.log('User Vehicles:', userVehicles);
+            console.log('Current Route:', currentRoute);
+            console.log('Main Map:', mainMap ? 'Initialized' : 'Not Initialized');
+            console.log('Near Me Map:', nearMeMap ? 'Initialized' : 'Not Initialized');
+            console.log('Vendor Map:', vendorMap ? 'Initialized' : 'Not Initialized');
+            console.log('Directions Service:', directionsService ? 'Available' : 'Not Available');
+            console.log('Geocoder:', geocoder ? 'Available' : 'Not Available');
+            console.log('Places Service:', placesService ? 'Available' : 'Not Available');
+            console.log('================================');
+        };
+
+        // Debug function to test network connectivity
+        const debugNetwork = async () => {
+            console.log('=== NETWORK DEBUG ===');
+            console.log('Navigator Online:', navigator.onLine);
+            console.log('App Online Status:', isOnline);
+            
+            try {
+                const response = await fetch('https://www.google.com/favicon.ico', { 
+                    method: 'HEAD', 
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                });
+                console.log('Google Connectivity: OK');
+            } catch (error) {
+                console.log('Google Connectivity: FAILED', error);
+            }
+            
+            try {
+                const response = await fetch('https://api.openchargemap.io/v3/poi/?output=json&maxresults=1');
+                console.log('OpenChargeMap API: OK');
+            } catch (error) {
+                console.log('OpenChargeMap API: FAILED', error);
+            }
+            console.log('====================');
+        };
+
+        // Debug function to test Firebase connection
+        const debugFirebase = async () => {
+            console.log('=== FIREBASE DEBUG ===');
+            console.log('Firebase App:', app ? 'Initialized' : 'Not Initialized');
+            console.log('Auth:', auth ? 'Available' : 'Not Available');
+            console.log('Database:', db ? 'Available' : 'Not Available');
+            
+            if (db && auth?.currentUser) {
+                try {
+                    const testQuery = query(collection(db, 'chargers'), limit(1));
+                    const snapshot = await getDocs(testQuery);
+                    console.log('Firebase Read Test: SUCCESS');
+                    console.log('Sample charger count:', snapshot.size);
+                } catch (error) {
+                    console.log('Firebase Read Test: FAILED', error);
+                }
+            } else {
+                console.log('Firebase Read Test: SKIPPED (No DB or User)');
+            }
+            console.log('=====================');
+        };
+
+        // Debug function to test Google Maps
+        const debugGoogleMaps = () => {
+            console.log('=== GOOGLE MAPS DEBUG ===');
+            console.log('Google Maps API:', typeof google !== 'undefined' ? 'Loaded' : 'Not Loaded');
+            console.log('Maps Object:', google?.maps ? 'Available' : 'Not Available');
+            console.log('Directions Service:', directionsService ? 'Initialized' : 'Not Initialized');
+            console.log('Geocoder:', geocoder ? 'Initialized' : 'Not Initialized');
+            console.log('Places Service:', placesService ? 'Initialized' : 'Not Initialized');
+            console.log('Main Map:', mainMap ? 'Initialized' : 'Not Initialized');
+            console.log('Near Me Map:', nearMeMap ? 'Initialized' : 'Not Initialized');
+            console.log('Vendor Map:', vendorMap ? 'Initialized' : 'Not Initialized');
+            console.log('========================');
+        };
+
+        // Debug function to test route planning
+        const debugRoutePlanning = () => {
+            console.log('=== ROUTE PLANNING DEBUG ===');
+            console.log('Current Route Object:', currentRoute);
+            console.log('Selected Vehicle:', currentRoute?.vehicle);
+            console.log('Current Charge:', currentRoute?.currentCharge);
+            console.log('Planned Waypoints:', currentRoute?.plannedWaypoints);
+            console.log('Navigation Directions:', currentRoute?.navigationDirections);
+            console.log('Is Planning:', currentRoute?.isPlanning);
+            console.log('Selected Route Index:', currentRoute?.selectedRouteIndex);
+            console.log('============================');
+        };
+
+        // Debug function to clear all data and reset
+        const debugReset = () => {
+            console.log('=== RESETTING APPLICATION ===');
+            currentRoute = {
+                isPlanning: false,
+                selectedRouteIndex: null,
+                plannedWaypoints: [],
+                navigationDirections: null,
+                currentCharge: 100,
+                vehicle: null
+            };
+            userVehicles = [];
+            console.log('Application state reset');
+            console.log('============================');
+        };
+
         Object.assign(window, {
-            showMessage, hideMessage, showSection, toggleMobileMenu,
+            showMessage, hideMessage, showSection, toggleHamburgerMenu,
             showLogin, showSignUp, backToPortalChoice,
             signUp, login, googleLogin,
             logout: async () => { await signOut(auth); showMessage("Logged out successfully.", 3000, 'info'); },
@@ -2292,7 +4124,16 @@
             nextStep, previousStep, startNextLeg, navigateToCharger,
             selectRouteForPlanning, startStopPlanning,
             addWaypoint, removeWaypoint,
-            toggleMute
+            toggleMute,
+            checkNetworkStatus, showNetworkError, hideNetworkError, updateConnectionStatus,
+            suggestAlternativeRoute, findChargersNearLocation,
+            debugAppState, debugNetwork, debugFirebase, debugGoogleMaps, debugRoutePlanning, debugReset
+        });
+
+        // Initialize connection status on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateConnectionStatus(navigator.onLine);
+            checkNetworkStatus();
         });
 
         onAuthStateChanged(auth, async (user) => {
@@ -2326,6 +4167,7 @@
                 } else {
                     showSection('home');
                     loadUserVehicles(user.uid);
+                    loadTripHistory(user.uid);
                     checkVendorApplicationStatus(user.uid);
                 }
             } else {
