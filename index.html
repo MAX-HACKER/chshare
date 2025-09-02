@@ -788,14 +788,7 @@
             <!-- Vendor Dashboard Section -->
             <section id="dashboard" class="section">
                 <div class="p-6">
-                    <div class="border-b border-gray-200 mb-4">
-                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                            <a href="#" onclick="showVendorTab('performance-overview')" class="vendor-tab active border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Performance Overview</a>
-                            <a href="#" onclick="showVendorTab('manage-chargers')" class="vendor-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Manage Chargers</a>
-                            <a href="#" onclick="showVendorTab('my-vmap')" class="vendor-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">My VMAP</a>
-                            <a href="#" onclick="showVendorTab('vendor-settings')" class="vendor-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Settings</a>
-                        </nav>
-                    </div>
+
 
                     <div id="performance-overview" class="vendor-tab-content active">
                         <h3 class="text-2xl font-bold mb-4 text-gray-800">Performance Overview</h3>
@@ -1249,12 +1242,35 @@
             }, 150);
         };
         
+        // Handle URL hash changes (back/forward navigation)
         window.onpopstate = function(event) {
-            const sectionId = window.location.hash.replace('#', '');
-            if (sectionId) {
-                showSection(sectionId);
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                // Handle special dashboard tabs
+                if (hash.startsWith('dashboard-')) {
+                    const tabId = hash.replace('dashboard-', '');
+                    showSection('dashboard');
+                    showVendorTab(tabId);
+                } else {
+                    showSection(hash);
+                }
             } else {
                 showSection('home');
+            }
+        };
+
+        // Handle initial page load with hash
+        const handleInitialHash = () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                // Handle special dashboard tabs
+                if (hash.startsWith('dashboard-')) {
+                    const tabId = hash.replace('dashboard-', '');
+                    showSection('dashboard');
+                    showVendorTab(tabId);
+                } else {
+                    showSection(hash);
+                }
             }
         };
 
@@ -3813,11 +3829,21 @@
         };
 
         const showVendorTab = (tabId) => {
+            // Map URL tab names to actual tab IDs
+            const tabMapping = {
+                'vmap': 'my-vmap',
+                'manage': 'manage-chargers',
+                'performance': 'performance-overview',
+                'settings': 'vendor-settings'
+            };
+            
+            const actualTabId = tabMapping[tabId] || tabId;
+            
             document.querySelectorAll('.vendor-tab-content').forEach(content => content.classList.remove('active'));
             document.querySelectorAll('.vendor-tab').forEach(tab => tab.classList.remove('active'));
-            document.getElementById(tabId)?.classList.add('active');
-            document.querySelector(`.vendor-tab[onclick*="'${tabId}'"]`)?.classList.add('active');
-            if (tabId === 'my-vmap') {
+            document.getElementById(actualTabId)?.classList.add('active');
+            document.querySelector(`.vendor-tab[onclick*="'${actualTabId}'"]`)?.classList.add('active');
+            if (actualTabId === 'my-vmap') {
                 if (!vendorMap) {
                     initVendorMap();
                 }
@@ -4134,6 +4160,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             updateConnectionStatus(navigator.onLine);
             checkNetworkStatus();
+            // Handle initial hash if present
+            handleInitialHash();
         });
 
         onAuthStateChanged(auth, async (user) => {
