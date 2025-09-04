@@ -28,8 +28,8 @@
             --text-muted: #64748b;
             --border: #e2e8f0;
             --shadow: rgba(0, 0, 0, 0.1);
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         [data-theme="dark"] {
@@ -45,8 +45,8 @@
             --text-muted: #94a3b8;
             --border: #334155;
             --shadow: rgba(0, 0, 0, 0.3);
-            --glass-bg: rgba(0, 0, 0, 0.2);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-bg: rgba(0, 0, 0, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.05);
         }
 
         [data-theme="cyberpunk"] {
@@ -62,8 +62,8 @@
             --text-muted: #808080;
             --border: #ff0080;
             --shadow: rgba(255, 0, 128, 0.3);
-            --glass-bg: rgba(255, 0, 128, 0.1);
-            --glass-border: rgba(255, 0, 128, 0.2);
+            --glass-bg: rgba(255, 0, 128, 0.05);
+            --glass-border: rgba(255, 0, 128, 0.1);
         }
 
         [data-theme="ocean"] {
@@ -79,8 +79,8 @@
             --text-muted: #0369a1;
             --border: #7dd3fc;
             --shadow: rgba(14, 116, 144, 0.2);
-            --glass-bg: rgba(6, 182, 212, 0.1);
-            --glass-border: rgba(6, 182, 212, 0.2);
+            --glass-bg: rgba(6, 182, 212, 0.05);
+            --glass-border: rgba(6, 182, 212, 0.1);
         }
 
         * { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -95,21 +95,49 @@
 
         /* Glass Morphism Effects */
         .glass {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.01);
+            backdrop-filter: blur(4px) saturate(110%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 16px;
             box-shadow: 0 8px 32px var(--shadow);
             color: var(--text-primary);
+            position: relative;
+            z-index: 2;
         }
 
         .glass-card {
-            background: var(--bg-primary);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.01);
+            backdrop-filter: blur(4px) saturate(110%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 16px;
-            box-shadow: 0 4px 24px var(--shadow);
+            box-shadow: 0 8px 32px var(--shadow);
             color: var(--text-primary);
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Enhanced frosted glass for panels */
+        .frosted-panel {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(6px) saturate(120%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 12px 40px var(--shadow);
+            color: var(--text-primary);
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Frosted glass for cards */
+        .frosted-card {
+            background: rgba(255, 255, 255, 0.01);
+            backdrop-filter: blur(4px) saturate(110%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            box-shadow: 0 6px 28px var(--shadow);
+            color: var(--text-primary);
+            position: relative;
+            z-index: 2;
         }
 
         /* Animated Background */
@@ -142,6 +170,71 @@
             animation: shimmer 8s ease-in-out infinite;
             z-index: 0;
             pointer-events: none;
+        }
+        
+        /* Additional dynamic background elements */
+        .animated-bg .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--primary), transparent);
+            animation: orbFloat 15s infinite linear;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .animated-bg .bg-orb:nth-child(1) {
+            width: 200px;
+            height: 200px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.4), transparent);
+        }
+        
+        .animated-bg .bg-orb:nth-child(2) {
+            width: 150px;
+            height: 150px;
+            top: 60%;
+            right: 15%;
+            animation-delay: -5s;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.4), transparent);
+        }
+        
+        .animated-bg .bg-orb:nth-child(3) {
+            width: 100px;
+            height: 100px;
+            top: 30%;
+            right: 30%;
+            animation-delay: -10s;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.4), transparent);
+        }
+        
+        .animated-bg .bg-orb:nth-child(4) {
+            width: 120px;
+            height: 120px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: -7s;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.4), transparent);
+        }
+        
+        @keyframes orbFloat {
+            0%, 100% {
+                transform: translateY(0px) translateX(0px) scale(1);
+                opacity: 0.5;
+            }
+            25% {
+                transform: translateY(-20px) translateX(10px) scale(1.1);
+                opacity: 0.7;
+            }
+            50% {
+                transform: translateY(-10px) translateX(-15px) scale(0.9);
+                opacity: 0.6;
+            }
+            75% {
+                transform: translateY(-30px) translateX(5px) scale(1.05);
+                opacity: 0.8;
+            }
         }
         @keyframes backgroundShift {
             0%, 100% { 
@@ -180,8 +273,9 @@
             background: var(--accent);
             border-radius: 50%;
             animation: floatParticle 15s infinite linear;
-            opacity: 0.6;
+            opacity: 0.8;
             pointer-events: none;
+            z-index: -1;
         }
         .particle:nth-child(odd) {
             animation-duration: 20s;
@@ -258,6 +352,67 @@
         .logout-btn:active {
             transform: scale(0.95);
         }
+        
+        /* Theme-synchronized button styles */
+        .btn-primary {
+            background: var(--primary) !important;
+            color: white !important;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark) !important;
+            transform: scale(1.02);
+        }
+        
+        .btn-secondary {
+            background: var(--secondary) !important;
+            color: white !important;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--secondary-dark) !important;
+            transform: scale(1.02);
+        }
+        
+        .btn-accent {
+            background: var(--accent) !important;
+            color: white !important;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-accent:hover {
+            background: var(--accent-dark) !important;
+            transform: scale(1.02);
+        }
+        
+        .btn-partner {
+            background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+            color: white !important;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-partner:hover {
+            background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark)) !important;
+            transform: scale(1.02);
+        }
+        
+        .btn-history {
+            background: var(--accent) !important;
+            color: white !important;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-history:hover {
+            background: var(--accent-dark) !important;
+            transform: scale(1.02);
+        }
 
         /* Neon Glow */
         .neon-glow {
@@ -295,12 +450,44 @@
         select.form-field option, select.form-input option { color: var(--text-primary); background: var(--bg-primary); }
 
         /* Cards */
-        .feature-card { background: var(--bg-primary); border-radius: 20px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 4px 24px var(--shadow); position: relative; overflow: hidden; }
+        .feature-card { 
+            background: rgba(99, 102, 241, 0.1); 
+            border-radius: 20px; 
+            padding: 24px; 
+            border: 1px solid rgba(99, 102, 241, 0.2); 
+            box-shadow: 0 4px 24px var(--shadow); 
+            position: relative; 
+            overflow: hidden; 
+            transition: all 0.3s ease;
+        }
         .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent)); }
-        .feature-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 12px 40px var(--shadow); }
+        .feature-card:hover { 
+            transform: translateY(-8px) scale(1.02); 
+            box-shadow: 0 12px 40px var(--shadow); 
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        
+        /* Dynamic colored cards */
+        .feature-card:nth-child(1) { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.2); }
+        .feature-card:nth-child(1):hover { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3); }
+        
+        .feature-card:nth-child(2) { background: rgba(236, 72, 153, 0.1); border-color: rgba(236, 72, 153, 0.2); }
+        .feature-card:nth-child(2):hover { background: rgba(236, 72, 153, 0.15); border-color: rgba(236, 72, 153, 0.3); }
+        
+        .feature-card:nth-child(3) { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); }
+        .feature-card:nth-child(3):hover { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); }
+        
+        .feature-card:nth-child(4) { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); }
+        .feature-card:nth-child(4):hover { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); }
 
         /* Navigation */
-        .nav-glass { background: var(--glass-bg); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid var(--glass-border); color: var(--text-primary); }
+        .nav-glass { 
+            background: rgba(255, 255, 255, 0.02); 
+            backdrop-filter: blur(4px) saturate(110%); 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
+            color: var(--text-primary); 
+        }
 
         /* Section animation */
         .section, .vendor-tab-content { display: none; opacity: 0; }
@@ -322,7 +509,14 @@
 
         /* Modal */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
-        .modal-content { background: var(--bg-primary); border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 20px 60px var(--shadow); animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal-content { 
+            background: rgba(255, 255, 255, 0.02); 
+            backdrop-filter: blur(6px) saturate(120%);
+            border-radius: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            box-shadow: 0 20px 60px var(--shadow); 
+            animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
         @keyframes modalSlideIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
         /* Loading */
@@ -339,20 +533,51 @@
         .status-maintenance { background: linear-gradient(135deg, #ef4444, #f87171); color: white; }
 
         /* Route cards */
-        .route-option { background: var(--bg-primary); border: 2px solid var(--border); border-radius: 16px; padding: 20px; cursor: pointer; position: relative; overflow: hidden; }
-        .route-option::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, var(--glass-bg), transparent); transition: left 0.5s; }
+        .route-option { 
+            background: rgba(99, 102, 241, 0.08); 
+            border: 2px solid rgba(99, 102, 241, 0.15); 
+            border-radius: 16px; 
+            padding: 20px; 
+            cursor: pointer; 
+            position: relative; 
+            overflow: hidden; 
+            transition: all 0.3s ease;
+        }
+        .route-option::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent); transition: left 0.5s; }
         .route-option:hover::before { left: 100%; }
-        .route-option:hover { transform: translateY(-4px); box-shadow: 0 8px 32px var(--shadow); border-color: var(--primary); }
-        .route-option.selected-route { border-color: var(--primary); background: var(--glass-bg); box-shadow: 0 8px 32px var(--primary); }
+        .route-option:hover { 
+            transform: translateY(-4px); 
+            box-shadow: 0 8px 32px var(--shadow); 
+            border-color: var(--primary); 
+            background: rgba(99, 102, 241, 0.12);
+        }
+        .route-option.selected-route { 
+            border-color: var(--primary); 
+            background: rgba(99, 102, 241, 0.15); 
+            box-shadow: 0 8px 32px var(--primary); 
+        }
 
         /* FAB */
         .fab { position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; cursor: pointer; box-shadow: 0 8px 24px var(--shadow); z-index: 1000; }
         .fab:hover { transform: scale(1.1) rotate(180deg); box-shadow: 0 12px 36px var(--shadow); }
 
         /* Vehicle cards */
-        .vehicle-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 16px; padding: 16px; position: relative; overflow: hidden; }
+        .vehicle-card { 
+            background: rgba(16, 185, 129, 0.08); 
+            border: 1px solid rgba(16, 185, 129, 0.15); 
+            border-radius: 16px; 
+            padding: 16px; 
+            position: relative; 
+            overflow: hidden; 
+            transition: all 0.3s ease;
+        }
         .vehicle-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
-        .vehicle-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px var(--shadow); border-color: var(--primary); }
+        .vehicle-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 32px var(--shadow); 
+            border-color: var(--primary); 
+            background: rgba(16, 185, 129, 0.12);
+        }
 
         /* Vendor tabs */
         .vendor-tab { position: relative; padding: 12px 20px; border-radius: 8px 8px 0 0; }
@@ -362,8 +587,22 @@
         .map-container { border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px var(--shadow); border: 1px solid var(--border); }
 
         /* Metrics */
-        .metric-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; position: relative; overflow: hidden; }
+        .metric-card { 
+            background: rgba(245, 158, 11, 0.08); 
+            border: 1px solid rgba(245, 158, 11, 0.15); 
+            border-radius: 16px; 
+            padding: 24px; 
+            text-align: center; 
+            position: relative; 
+            overflow: hidden; 
+            transition: all 0.3s ease;
+        }
         .metric-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--primary), var(--secondary)); opacity: 0.05; }
+        .metric-card:hover {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.25);
+            transform: translateY(-2px);
+        }
         .metric-value { position: relative; font-size: 2.5rem; font-weight: 800; background: linear-gradient(45deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
         /* Logo */
@@ -680,22 +919,22 @@
                     <div class="feature-card" id="vehicles-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
                         <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">My Vehicles</h2>
                         <p class="mb-4" style="color: var(--text-secondary);">Register and manage your electric vehicles for smart route planning.</p>
-                        <button id="vehicle-action-btn" onclick="showSection('vehicle-reg')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--primary); color: white;">Add Vehicle</button>
+                        <button id="vehicle-action-btn" onclick="showSection('vehicle-reg')" class="btn-modern w-full transition-all duration-300 hover:scale-105 btn-primary">Add Vehicle</button>
                     </div>
                     <div class="feature-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
                         <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">AI Route Planner</h2>
                         <p class="mb-4" style="color: var(--text-secondary);">Get intelligent route planning with optimal charging stops for your EV journey.</p>
-                        <button onclick="showSection('find-chargers')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--primary); color: white;">Plan Trip</button>
+                        <button onclick="showSection('find-chargers')" class="btn-modern w-full transition-all duration-300 hover:scale-105 btn-secondary">Plan Trip</button>
                     </div>
                     <div class="feature-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
                         <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">Trip History</h2>
                         <p class="mb-4" style="color: var(--text-secondary);">View your completed trips and statistics.</p>
-                        <button onclick="showSection('trip-history')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--secondary); color: white;">View History</button>
+                        <button onclick="showSection('trip-history')" class="btn-modern w-full transition-all duration-300 hover:scale-105 btn-history">View History</button>
                     </div>
                     <div class="feature-card" style="background: var(--bg-secondary); border: 1px solid var(--border); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)';">
                         <h2 class="text-2xl font-semibold mb-2" style="color: var(--text-primary);">Become a Partner</h2>
                         <p class="mb-4" style="color: var(--text-secondary);">Earn by setting up your own charging station franchise.</p>
-                        <button onclick="showSection('become-vendor')" class="btn-modern w-full transition-all duration-300 hover:scale-105" style="background: var(--accent); color: white;">Apply Now</button>
+                        <button onclick="showSection('become-vendor')" class="btn-modern w-full transition-all duration-300 hover:scale-105 btn-partner">Apply Now</button>
                     </div>
                 </div>
             </section>
@@ -1215,8 +1454,7 @@
             document.querySelectorAll('.theme-option').forEach(opt => {
                 opt.addEventListener('click', () => {
                     const theme = opt.getAttribute('data-theme');
-                    document.body.setAttribute('data-theme', theme);
-                    localStorage.setItem('cf-theme', theme);
+                    uiManager.themeManager.setTheme(theme);
                     document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
                     opt.classList.add('active');
                     
@@ -1374,12 +1612,8 @@
         };
 
         const showSection = (sectionId) => {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            const sectionElement = document.getElementById(sectionId);
-            if (sectionElement) {
-                sectionElement.classList.add('active');
-                window.location.hash = sectionId;
-            }
+            uiManager.showSection(sectionId);
+            window.location.hash = sectionId;
 
             // Trigger map resize for all maps to ensure they render correctly when their section becomes visible
             setTimeout(() => {
@@ -1431,14 +1665,7 @@
         };
 
         const toggleHamburgerMenu = () => {
-            const menu = document.getElementById('hamburger-menu');
-            const btn = document.getElementById('hamburger-btn');
-            if (menu && btn) {
-                menu.classList.toggle('hidden');
-                // Optional: Add rotation animation to hamburger icon
-                btn.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(90deg)';
-                btn.style.transition = 'transform 0.3s ease';
-            }
+            uiManager.toggleHamburgerMenu();
         };
         
         const renderAuthForms = () => {
@@ -1576,10 +1803,7 @@
         };
 
         const updateVehicleButton = (vehicleCount) => {
-            const btn = document.getElementById('vehicle-action-btn');
-            if (btn) {
-                btn.textContent = vehicleCount > 0 ? 'Manage Vehicles' : 'Add Vehicle';
-            }
+            vehicleManager.updateVehicleButton();
         };
 
         // Trip History Management
@@ -4312,30 +4536,268 @@
             debugAppState, debugNetwork, debugFirebase, debugGoogleMaps, debugRoutePlanning, debugReset
         });
 
-        // Initialize connection status on page load
-        // Create floating particles for interactive background
-        function createParticles() {
-            const particleContainer = document.querySelector('.animated-bg');
-            if (!particleContainer) return;
+        // OOP Classes for modular code organization
+        
+        // Theme Manager Class
+        class ThemeManager {
+            constructor() {
+                this.currentTheme = 'light';
+                this.themes = {
+                    light: { primary: '#6366f1', secondary: '#ec4899', accent: '#10b981' },
+                    dark: { primary: '#818cf8', secondary: '#f472b6', accent: '#34d399' },
+                    cyberpunk: { primary: '#ff0080', secondary: '#00ffff', accent: '#ff6b35' },
+                    ocean: { primary: '#0891b2', secondary: '#67e8f9', accent: '#06b6d4' }
+                };
+            }
             
-            // Create 15 particles
-            for (let i = 0; i < 15; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDelay = Math.random() * 20 + 's';
-                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
-                particleContainer.appendChild(particle);
+            setTheme(themeName) {
+                this.currentTheme = themeName;
+                document.body.setAttribute('data-theme', themeName);
+                localStorage.setItem('cf-theme', themeName);
+                this.updateButtonThemes();
+            }
+            
+            updateButtonThemes() {
+                // Update primary buttons (My Vehicles)
+                const primaryButtons = document.querySelectorAll('.btn-primary');
+                primaryButtons.forEach(btn => {
+                    btn.style.background = `var(--primary)`;
+                    btn.style.color = 'white';
+                });
+                
+                // Update secondary buttons (AI Route Planner)
+                const secondaryButtons = document.querySelectorAll('.btn-secondary');
+                secondaryButtons.forEach(btn => {
+                    btn.style.background = `var(--secondary)`;
+                    btn.style.color = 'white';
+                });
+                
+                // Update history buttons (Trip History)
+                const historyButtons = document.querySelectorAll('.btn-history');
+                historyButtons.forEach(btn => {
+                    btn.style.background = `var(--accent)`;
+                    btn.style.color = 'white';
+                });
+                
+                // Update partner buttons (Become a Partner)
+                const partnerButtons = document.querySelectorAll('.btn-partner');
+                partnerButtons.forEach(btn => {
+                    btn.style.background = `linear-gradient(135deg, var(--primary), var(--secondary))`;
+                    btn.style.color = 'white';
+                });
+            }
+            
+            getCurrentTheme() {
+                return this.currentTheme;
             }
         }
+        
+        // UI Manager Class
+        class UIManager {
+            constructor() {
+                this.activeSection = 'home';
+                this.themeManager = new ThemeManager();
+            }
+            
+            showSection(sectionId) {
+                // Hide all sections
+                document.querySelectorAll('.section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                
+                // Show target section
+                const targetSection = document.getElementById(sectionId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                    this.activeSection = sectionId;
+                }
+            }
+            
+            toggleHamburgerMenu() {
+                const menu = document.getElementById('hamburger-menu');
+                const btn = document.getElementById('hamburger-btn');
+                if (menu && btn) {
+                    menu.classList.toggle('hidden');
+                    btn.style.transform = menu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(90deg)';
+                    btn.style.transition = 'transform 0.3s ease';
+                }
+            }
+            
+            updateConnectionStatus(isOnline) {
+                const indicator = document.getElementById('connection-indicator');
+                const text = document.getElementById('connection-text');
+                
+                if (indicator && text) {
+                    if (isOnline) {
+                        indicator.className = 'w-2 h-2 rounded-full bg-green-500';
+                        text.textContent = 'Online';
+                    } else {
+                        indicator.className = 'w-2 h-2 rounded-full bg-red-500';
+                        text.textContent = 'Offline';
+                    }
+                }
+            }
+        }
+        
+        // Background Animation Manager Class
+        class BackgroundAnimationManager {
+            constructor() {
+                this.particles = [];
+                this.orbs = [];
+                this.waves = [];
+            }
+            
+            createParticles() {
+                const particleContainer = document.querySelector('.animated-bg');
+                if (!particleContainer) return;
+                
+                for (let i = 0; i < 15; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.animationDelay = Math.random() * 20 + 's';
+                    particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                    particleContainer.appendChild(particle);
+                    this.particles.push(particle);
+                }
+            }
+            
+            createBackgroundOrbs() {
+                const particleContainer = document.querySelector('.animated-bg');
+                if (!particleContainer) return;
+                
+                for (let i = 0; i < 4; i++) {
+                    const orb = document.createElement('div');
+                    orb.className = 'bg-orb';
+                    particleContainer.appendChild(orb);
+                    this.orbs.push(orb);
+                }
+            }
+            
+            createWaveElements() {
+                const particleContainer = document.querySelector('.animated-bg');
+                if (!particleContainer) return;
+                
+                for (let i = 0; i < 3; i++) {
+                    const wave = document.createElement('div');
+                    wave.className = 'wave-element';
+                    wave.style.cssText = `
+                        position: absolute;
+                        width: ${200 + i * 100}px;
+                        height: ${200 + i * 100}px;
+                        border-radius: 50%;
+                        background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+                        animation: wavePulse ${8 + i * 2}s ease-in-out infinite;
+                        animation-delay: ${i * 2}s;
+                        top: ${20 + i * 25}%;
+                        left: ${10 + i * 30}%;
+                        pointer-events: none;
+                        z-index: -1;
+                    `;
+                    particleContainer.appendChild(wave);
+                    this.waves.push(wave);
+                }
+            }
+            
+            initialize() {
+                this.createParticles();
+                this.createBackgroundOrbs();
+                this.createWaveElements();
+            }
+        }
+        
+        // Vehicle Manager Class
+        class VehicleManager {
+            constructor() {
+                this.vehicles = [];
+                this.loadVehicles();
+            }
+            
+            loadVehicles() {
+                const saved = localStorage.getItem('cf-vehicles');
+                if (saved) {
+                    this.vehicles = JSON.parse(saved);
+                }
+            }
+            
+            saveVehicles() {
+                localStorage.setItem('cf-vehicles', JSON.stringify(this.vehicles));
+            }
+            
+            addVehicle(vehicleData) {
+                const vehicle = {
+                    id: Date.now().toString(),
+                    ...vehicleData,
+                    addedAt: new Date().toISOString()
+                };
+                this.vehicles.push(vehicle);
+                this.saveVehicles();
+                this.updateVehicleButton();
+                return vehicle;
+            }
+            
+            removeVehicle(vehicleId) {
+                this.vehicles = this.vehicles.filter(v => v.id !== vehicleId);
+                this.saveVehicles();
+                this.updateVehicleButton();
+            }
+            
+            updateVehicleButton() {
+                const btn = document.getElementById('vehicle-action-btn');
+                if (btn) {
+                    btn.textContent = this.vehicles.length > 0 ? 'Manage Vehicles' : 'Add Vehicle';
+                }
+            }
+            
+            getVehicles() {
+                return this.vehicles;
+            }
+        }
+        
+        // Initialize global instances
+        const uiManager = new UIManager();
+        const backgroundManager = new BackgroundAnimationManager();
+        const vehicleManager = new VehicleManager();
+        
+        // Legacy functions for backward compatibility
+        function createParticles() {
+            backgroundManager.createParticles();
+        }
+        
+        function createBackgroundOrbs() {
+            backgroundManager.createBackgroundOrbs();
+        }
+        
+        function createWaveElements() {
+            backgroundManager.createWaveElements();
+        }
+        
+        // Add wave pulse animation
+        const waveStyle = document.createElement('style');
+        waveStyle.textContent = `
+            @keyframes wavePulse {
+                0%, 100% {
+                    transform: scale(1) rotate(0deg);
+                    opacity: 0.2;
+                }
+                50% {
+                    transform: scale(1.2) rotate(180deg);
+                    opacity: 0.4;
+                }
+            }
+        `;
+        document.head.appendChild(waveStyle);
 
         document.addEventListener('DOMContentLoaded', () => {
             updateConnectionStatus(navigator.onLine);
             checkNetworkStatus();
             // Handle initial hash if present
             handleInitialHash();
-            // Create interactive background particles
-            createParticles();
+            // Initialize background animations using OOP
+            backgroundManager.initialize();
+            // Initialize theme manager
+            const savedTheme = localStorage.getItem('cf-theme') || 'light';
+            uiManager.themeManager.setTheme(savedTheme);
         });
 
         onAuthStateChanged(auth, async (user) => {
