@@ -256,7 +256,11 @@
 
         /* Grid */
         .responsive-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-        @media (max-width: 640px) { .responsive-grid { grid-template-columns: 1fr; gap: 16px; } }
+        @media (max-width: 640px) { 
+            .responsive-grid { grid-template-columns: 1fr; gap: 16px; } 
+            /* Hide floating theme button on mobile */
+            .fixed.bottom-4.left-4 { display: none; }
+        }
 
         /* Scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -361,7 +365,18 @@
         <header class="nav-glass p-4 sticky top-0 z-10">
             <!-- Hamburger Menu Navigation -->
             <nav class="container mx-auto flex justify-between items-center">
-                <div class="logo-enhanced text-2xl font-extrabold tracking-tight" style="color: var(--text-primary);">ChargeFranchise</div>
+                <!-- Left Side - Hamburger Menu Button -->
+                <div class="flex items-center gap-3">
+                    <!-- Hamburger Menu Button -->
+                    <button id="hamburger-btn" class="text-2xl hover:opacity-80 transition-all duration-300" style="color: var(--text-primary);" onclick="toggleHamburgerMenu()">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Logo -->
+                    <div class="logo-enhanced text-2xl font-extrabold tracking-tight" style="color: var(--text-primary);">ChargeFranchise</div>
+                </div>
                 
                 <!-- Right Side Controls -->
                 <div class="flex items-center gap-3">
@@ -378,13 +393,6 @@
                     <button onclick="logout()" class="py-2 px-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 text-sm" style="background: #ef4444; color: white;" title="Logout">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                    </button>
-                    
-                    <!-- Hamburger Menu Button -->
-                    <button id="hamburger-btn" class="text-2xl hover:opacity-80 transition-all duration-300" style="color: var(--text-primary);" onclick="toggleHamburgerMenu()">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
                 </div>
@@ -508,6 +516,17 @@
                                 Settings
                             </div>
                         </a>
+                    </div>
+                </div>
+                
+                <!-- Theme Selector Section -->
+                <div class="mt-6 pt-4 border-t" style="border-color: var(--border);">
+                    <h3 class="text-lg font-semibold mb-3" style="color: var(--text-primary);">Theme</h3>
+                    <div class="theme-selector flex gap-3">
+                        <div class="theme-option theme-light active" data-theme="light" title="Light Theme"></div>
+                        <div class="theme-option theme-dark" data-theme="dark" title="Dark Theme"></div>
+                        <div class="theme-option theme-cyberpunk" data-theme="cyberpunk" title="Cyberpunk Theme"></div>
+                        <div class="theme-option theme-ocean" data-theme="ocean" title="Ocean Theme"></div>
                     </div>
                 </div>
             </div>
