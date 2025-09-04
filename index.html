@@ -509,8 +509,17 @@
                         <!-- Logo -->
                         <div class="logo-enhanced text-2xl font-extrabold tracking-tight" style="color: var(--text-primary);">ChargeFranchise</div>
                     </div>
+                </div>
+                
+                <!-- Bottom Row - Status and User Controls -->
+                <div class="flex justify-between items-center mt-2">
+                    <!-- Left Side - Connection Status -->
+                    <div id="connection-status" class="flex items-center gap-1" title="Connection Status">
+                        <div id="connection-indicator" class="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span id="connection-text" class="text-xs" style="color: var(--text-secondary);">Online</span>
+                    </div>
                     
-                    <!-- Right Side Controls -->
+                    <!-- Right Side - User Info and Logout -->
                     <div class="flex items-center gap-3">
                         <!-- User Info -->
                         <span id="user-info" style="color: var(--text-primary); font-weight: 500;"></span>
@@ -522,15 +531,6 @@
                             </svg>
                             <div class="absolute inset-0 bg-gradient-to-r from-red-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                         </button>
-                    </div>
-                </div>
-                
-                <!-- Bottom Row - Connection Status -->
-                <div class="flex justify-start mt-2">
-                    <!-- Connection Status -->
-                    <div id="connection-status" class="flex items-center gap-1" title="Connection Status">
-                        <div id="connection-indicator" class="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span id="connection-text" class="text-xs" style="color: var(--text-secondary);">Online</span>
                     </div>
                 </div>
             </nav>
